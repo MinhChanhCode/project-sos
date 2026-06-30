@@ -223,3 +223,4 @@ site/
 .scratch/
 /incoming-distributions
 /intTestHomeDir
+!gradle/wrapper/gradle-wrapper.jar
