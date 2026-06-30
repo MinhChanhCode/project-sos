@@ -1,0 +1,58 @@
+CREATE TABLE IF NOT EXISTS customer_sessions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    session_id VARCHAR(255) NOT NULL UNIQUE,
+    table_id BINARY(16) NOT NULL,
+    customer_name VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (table_id) REFERENCES tables(id)
+);
+
+CREATE TABLE IF NOT EXISTS staff_chat_messages (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    table_id BINARY(16) NOT NULL,
+    session_id VARCHAR(255),
+    customer_name VARCHAR(255),
+    sender VARCHAR(50) NOT NULL,
+    message TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (table_id) REFERENCES tables(id)
+);
+
+ALTER TABLE reviews ADD COLUMN customer_name VARCHAR(255) NULL;
+
+UPDATE tables t
+JOIN (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY name ORDER BY id) AS rn
+    FROM tables
+    WHERE name REGEXP '^Bàn [0-9]+$'
+) ranked ON ranked.id = t.id
+SET t.name = CONCAT(t.name, ' cũ ', ranked.rn)
+WHERE ranked.rn > 1;
+
+INSERT INTO tables (id, name, capacity, is_available, area_id, pos_x, pos_y, table_status)
+SELECT UUID_TO_BIN(UUID()), CONCAT('Bàn ', n), 4, TRUE, 1, x, y, 'EMPTY'
+FROM (
+    SELECT 1 n, 105 x, 74 y UNION ALL
+    SELECT 2, 275, 74 UNION ALL
+    SELECT 3, 610, 74 UNION ALL
+    SELECT 4, 760, 74 UNION ALL
+    SELECT 5, 1045, 74 UNION ALL
+    SELECT 6, 1215, 74 UNION ALL
+    SELECT 7, 160, 310 UNION ALL
+    SELECT 8, 160, 455 UNION ALL
+    SELECT 9, 600, 315 UNION ALL
+    SELECT 10, 760, 315 UNION ALL
+    SELECT 11, 600, 475 UNION ALL
+    SELECT 12, 760, 475 UNION ALL
+    SELECT 13, 930, 315 UNION ALL
+    SELECT 14, 930, 475 UNION ALL
+    SELECT 15, 1160, 315 UNION ALL
+    SELECT 16, 1160, 475 UNION ALL
+    SELECT 17, 290, 720 UNION ALL
+    SELECT 18, 450, 720 UNION ALL
+    SELECT 19, 850, 720 UNION ALL
+    SELECT 20, 1010, 720
+) defaults
+WHERE NOT EXISTS (SELECT 1 FROM tables t WHERE t.name = CONCAT('Bàn ', n));

@@ -1,0 +1,409 @@
+{
+	"info": {
+		"_postman_id": "sos-restaurant-api",
+		"name": "SOS Restaurant API",
+		"description": "API collection cho hệ thống quản lý nhà hàng SOS",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Menu Items",
+			"item": [
+				{
+					"name": "Get All Menu Items",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items"]
+						}
+					}
+				},
+				{
+					"name": "Get Active Menu Items",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items/active",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items", "active"]
+						}
+					}
+				},
+				{
+					"name": "Get Available Menu Items",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items/available",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items", "available"]
+						}
+					}
+				},
+				{
+					"name": "Get Menu Items by Category",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items/category/{{category_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items", "category", "{{category_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Search Menu Items",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items/search?keyword=phở",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items", "search"],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "phở"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Menu Item by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items/{{menu_item_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items", "{{menu_item_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Create Menu Item",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Phở bò đặc biệt\",\n  \"description\": \"Phở bò với đầy đủ thịt bò các loại\",\n  \"price\": 55000,\n  \"imageUrl\": \"https://example.com/pho-dac-biet.jpg\",\n  \"categoryId\": \"{{category_id}}\",\n  \"isAvailable\": true,\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items"]
+						}
+					}
+				},
+				{
+					"name": "Update Menu Item",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Phở bò đặc biệt (Cập nhật)\",\n  \"description\": \"Phở bò với đầy đủ thịt bò các loại - phiên bản mới\",\n  \"price\": 60000,\n  \"imageUrl\": \"https://example.com/pho-dac-biet-new.jpg\",\n  \"categoryId\": \"{{category_id}}\",\n  \"isAvailable\": true,\n  \"isActive\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items/{{menu_item_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items", "{{menu_item_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Menu Item",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items/{{menu_item_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items", "{{menu_item_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Toggle Availability",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items/{{menu_item_id}}/toggle-availability",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items", "{{menu_item_id}}", "toggle-availability"]
+						}
+					}
+				},
+				{
+					"name": "Toggle Active Status",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/menu-items/{{menu_item_id}}/toggle-active",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "menu-items", "{{menu_item_id}}", "toggle-active"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Cart Management",
+			"item": [
+				{
+					"name": "Create Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tableId\": \"{{table_id}}\",\n  \"sessionId\": \"session_123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/carts",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "carts"]
+						}
+					}
+				},
+				{
+					"name": "Get Cart by Session ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/carts/session/{{session_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "carts", "session", "{{session_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Cart by Table ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/carts/table/{{table_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "carts", "table", "{{table_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Add Item to Cart",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"menuItemId\": \"{{menu_item_id}}\",\n  \"quantity\": 2,\n  \"notes\": \"Không cay, thêm rau\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/carts/session/{{session_id}}/items",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "carts", "session", "{{session_id}}", "items"]
+						}
+					}
+				},
+				{
+					"name": "Update Cart Item",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"quantity\": 3,\n  \"notes\": \"Không cay, thêm rau, ít muối\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/carts/session/{{session_id}}/items/{{menu_item_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "carts", "session", "{{session_id}}", "items", "{{menu_item_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Remove Item from Cart",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/carts/session/{{session_id}}/items/{{menu_item_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "carts", "session", "{{session_id}}", "items", "{{menu_item_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Clear Cart",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/carts/session/{{session_id}}/clear",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "carts", "session", "{{session_id}}", "clear"]
+						}
+					}
+				},
+				{
+					"name": "Delete Cart",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/carts/session/{{session_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "carts", "session", "{{session_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Get Table QR",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/carts/table/{{table_id}}/qr",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "carts", "table", "{{table_id}}", "qr"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Categories",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/categories",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "categories"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Tables",
+			"item": [
+				{
+					"name": "Get All Tables",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tables",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tables"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "session_id",
+			"value": "session_123",
+			"type": "string"
+		},
+		{
+			"key": "table_id",
+			"value": "550e8400-e29b-41d4-a716-446655440201",
+			"type": "string"
+		},
+		{
+			"key": "category_id",
+			"value": "550e8400-e29b-41d4-a716-446655440001",
+			"type": "string"
+		},
+		{
+			"key": "menu_item_id",
+			"value": "550e8400-e29b-41d4-a716-446655440101",
+			"type": "string"
+		}
+	]
+} 

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: sos-api
+    runtime: docker
+    plan: free
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: FRONTEND_ORIGIN
+        value: https://sos-fe.vercel.app
+      - key: APP_FRONTEND_URL
+        value: https://sos-fe.vercel.app
+      - key: QR_BASE_URL
+        value: https://sos-fe.vercel.app
+      - key: AI_SERVICE_URL
+        value: http://127.0.0.1:8000
