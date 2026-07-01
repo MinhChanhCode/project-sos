@@ -30,7 +30,6 @@ import { OrderItemApi } from "~/api-service/OrderItemApi";
 import { useAuthStore } from "~/stores/auth";
 import { useNotificationSound } from "~/utils/notificationSound";
 import { navigateTo, useHead, useNuxtApp } from "nuxt/app";
-import { definePageMeta } from "nuxt/dist/pages/runtime";
 import { onMounted, ref } from "vue";
 
 definePageMeta({ middleware: "auth", roles: ["KITCHEN", "ADMIN"] });

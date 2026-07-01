@@ -29,7 +29,6 @@
 import { authApi } from "~/api-service/AuthApi";
 import { useAuthStore } from "~/stores/auth";
 import { navigateTo, useRoute } from "nuxt/app";
-import { definePageMeta } from "nuxt/dist/pages/runtime";
 import { ref } from "vue";
 
 definePageMeta({ layout: false });
