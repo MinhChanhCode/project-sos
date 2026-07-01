@@ -145,7 +145,9 @@
                 autofocus
               />
             </UFormGroup>
-            <UButton class="w-full" type="submit">Bắt đầu đặt món</UButton>
+            <UButton class="w-full" type="submit" :loading="savingCustomerName">
+              Bắt đầu đặt món
+            </UButton>
           </form>
         </UCard>
       </UModal>
@@ -207,6 +209,7 @@ const {
   showCart,
   showRatingDialog,
   showCustomerNameDialog,
+  savingCustomerName,
   ratingValue,
   ratingComment,
   customerName,

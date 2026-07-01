@@ -75,6 +75,7 @@ const selectedTableId = ref("");
 const messages = ref<any[]>([]);
 const input = ref("");
 const sending = ref(false);
+const nuxt = useNuxtApp() as any;
 
 const tableMessages = (tableId: string) => messages.value.filter((message) => String(message.tableId) === String(tableId));
 const activeMessages = computed(() => tableMessages(selectedTableId.value));
@@ -83,9 +84,13 @@ const formatTime = (value?: string) => value ? new Date(value).toLocaleTimeStrin
 
 const selectTable = async (tableId: string) => {
   selectedTableId.value = tableId;
-  const history = (await staffChatApi.history(tableId)) as any[];
-  const otherMessages = messages.value.filter((message) => String(message.tableId) !== String(tableId));
-  messages.value = [...otherMessages, ...history];
+  try {
+    const history = (await staffChatApi.history(tableId)) as any[];
+    const otherMessages = messages.value.filter((message) => String(message.tableId) !== String(tableId));
+    messages.value = [...otherMessages, ...history];
+  } catch (error: any) {
+    nuxt.$toast?.error?.(error?.message || "Không thể tải tin nhắn");
+  }
 };
 
 const loadAll = async () => {
@@ -105,13 +110,14 @@ const reply = async () => {
     }) as any;
     if (!messages.value.some((message) => message.id === saved.id)) messages.value.push(saved);
     input.value = "";
+  } catch (error: any) {
+    nuxt.$toast?.error?.(error?.message || "Không thể gửi tin nhắn");
   } finally {
     sending.value = false;
   }
 };
 
 const setupRealtime = () => {
-  const nuxt = useNuxtApp() as any;
   if (!nuxt?.$realtime) return;
   nuxt.$realtime.subscribe("/topic/staff/chat", (payload: any) => {
     const message = payload?.data;

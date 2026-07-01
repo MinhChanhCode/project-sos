@@ -8,7 +8,9 @@
       class="rounded-full shadow-lg"
       :disabled="!tableId"
       @click="open = true"
-    />
+    >
+      Nhắn nhân viên
+    </UButton>
     <UCard v-else class="w-80 sm:w-96 shadow-xl">
       <template #header>
         <div class="flex items-center justify-between">
@@ -63,14 +65,19 @@ const input = ref("");
 const sending = ref(false);
 const messages = ref<any[]>([]);
 const messagesRef = ref<HTMLElement | null>(null);
+const nuxt = useNuxtApp() as any;
 
 const scrollBottom = () => nextTick(() => messagesRef.value?.scrollTo({ top: 99999, behavior: "smooth" }));
 const formatTime = (value?: string) => (value ? new Date(value).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "");
 
 const loadHistory = async () => {
   if (!props.tableId) return;
-  messages.value = (await staffChatApi.history(props.tableId)) as any[];
-  scrollBottom();
+  try {
+    messages.value = (await staffChatApi.history(props.tableId)) as any[];
+    scrollBottom();
+  } catch (error: any) {
+    nuxt.$toast?.error?.(error?.message || "Không thể tải tin nhắn");
+  }
 };
 
 const send = async () => {
@@ -89,13 +96,14 @@ const send = async () => {
     }
     input.value = "";
     scrollBottom();
+  } catch (error: any) {
+    nuxt.$toast?.error?.(error?.message || "Không thể gửi tin nhắn");
   } finally {
     sending.value = false;
   }
 };
 
 const setupRealtime = () => {
-  const nuxt = useNuxtApp() as any;
   if (!props.tableId || !nuxt?.$realtime) return;
   nuxt.$realtime.subscribe(`/topic/tables/${props.tableId}/staff-chat`, (payload: any) => {
     const message = payload?.data;

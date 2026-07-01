@@ -25,6 +25,7 @@ export const useCustomer = () => {
   );
   const customerName = ref("");
   const showCustomerNameDialog = ref(false);
+  const savingCustomerName = ref(false);
 
   const normalizeTableLookup = (value: unknown) => {
     const raw = String(value ?? "").trim().toLowerCase();
@@ -405,18 +406,28 @@ export const useCustomer = () => {
       toast.error("Vui lòng nhập tên của bạn");
       return false;
     }
-    await ensureCart();
-    if (!hasValidTableId()) return false;
-    await customerSessionApi.save({
-      sessionId: sessionId.value,
-      tableId: String(tableId.value),
-      customerName: name,
-    });
-    if (typeof window !== "undefined") {
-      localStorage.setItem(customerNameStorageKey.value, name);
+    const toast = useNuxtApp().$toast as typeof toastType;
+    savingCustomerName.value = true;
+    try {
+      await ensureCart();
+      if (!hasValidTableId()) return false;
+      await customerSessionApi.save({
+        sessionId: sessionId.value,
+        tableId: String(tableId.value),
+        customerName: name,
+      });
+      if (typeof window !== "undefined") {
+        localStorage.setItem(customerNameStorageKey.value, name);
+      }
+      customerName.value = name;
+      showCustomerNameDialog.value = false;
+      return true;
+    } catch (error: any) {
+      toast.error(error?.message || "Không thể lưu tên khách hàng. Vui lòng thử lại.");
+      return false;
+    } finally {
+      savingCustomerName.value = false;
     }
-    showCustomerNameDialog.value = false;
-    return true;
   };
 
   const fetchCartFromServer = async () => {
@@ -779,6 +790,7 @@ export const useCustomer = () => {
     showCart,
     showRatingDialog,
     showCustomerNameDialog,
+    savingCustomerName,
     ratingValue,
     ratingComment,
     selectedCategory,
