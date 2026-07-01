@@ -22,6 +22,45 @@
           <UToggle v-model="item.isAvailable" />
           <span class="ml-2 text-sm">Có sẵn</span>
         </UFormGroup>
+
+        <div class="rounded-lg border border-orange-100 bg-orange-50/60 p-3 dark:border-gray-800 dark:bg-gray-900">
+          <div class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
+            <Icon name="lucide:sparkles" class="h-4 w-4 text-orange-500" />
+            Dữ liệu AI tư vấn món
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UFormGroup label="Loại món">
+              <USelect v-model="item.type" :options="menuTypeOptions" />
+            </UFormGroup>
+            <UFormGroup label="Độ cay (0-3)">
+              <UInput v-model.number="item.spicyLevel" type="number" min="0" max="3" />
+            </UFormGroup>
+            <UFormGroup label="Thời gian chuẩn bị">
+              <UInput v-model.number="item.prepTimeMinutes" type="number" min="1" />
+            </UFormGroup>
+            <UFormGroup label="Ăn chay">
+              <div class="flex h-10 items-center gap-2">
+                <UToggle v-model="item.isVegetarian" />
+                <span class="text-sm text-gray-600 dark:text-gray-300">Phù hợp ăn chay</span>
+              </div>
+            </UFormGroup>
+            <UFormGroup class="sm:col-span-2" label="Tag khẩu vị">
+              <UInput v-model="item.tasteTags" placeholder="ngọt, béo, thanh nhẹ, cay..." />
+            </UFormGroup>
+            <UFormGroup class="sm:col-span-2" label="Nguyên liệu">
+              <UTextarea v-model="item.ingredients" rows="2" />
+            </UFormGroup>
+            <UFormGroup label="Dị ứng/cần tránh">
+              <UInput v-model="item.allergens" placeholder="hải sản, sữa, đậu phộng..." />
+            </UFormGroup>
+            <UFormGroup label="Phù hợp với">
+              <UInput v-model="item.suitableFor" />
+            </UFormGroup>
+            <UFormGroup class="sm:col-span-2" label="Gợi ý đi kèm">
+              <UInput v-model="item.pairing" />
+            </UFormGroup>
+          </div>
+        </div>
       </UForm>
 
       <template #footer>
@@ -59,4 +98,12 @@ const emit = defineEmits<{
   close: []
   save: [item: MenuItem]
 }>()
+
+const menuTypeOptions = [
+  { label: 'Món chính', value: 'MAIN' },
+  { label: 'Đồ uống', value: 'DRINK' },
+  { label: 'Khai vị', value: 'APPETIZER' },
+  { label: 'Tráng miệng', value: 'DESSERT' },
+  { label: 'Combo', value: 'COMBO' },
+]
 </script>

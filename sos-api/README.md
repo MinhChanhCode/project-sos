@@ -1,12 +1,14 @@
-# Ordering System API
+# SOS Restaurant Ordering API
 
-Hệ thống quản lý đơn hàng với Spring Boot, JPA, và JWT Authentication.
+Backend cho hệ thống gọi món nhà hàng ProjectSOS với Spring Boot, JPA, WebSocket, Flyway, JWT Authentication và tích hợp AI service.
 
 ## 🚀 Tính năng chính
 
 - **Authentication & Authorization**: JWT-based với role-based access control
+- **Restaurant ordering**: Quản lý menu, bàn, giỏ hàng, đơn hàng, trạng thái món, hóa đơn và đánh giá
+- **Realtime**: WebSocket cập nhật đơn bếp, phục vụ, bàn và chat
+- **AI integration**: Đồng bộ menu sang `sos-ai`, chatbot tư vấn món và sentiment review
 - **Audit Trail**: Tự động track `createdBy`, `createdAt`, `updatedBy`, `updatedAt`
-- **Soft Delete**: Bảo toàn dữ liệu với `isDeleted` flag
 - **RESTful API**: Đầy đủ CRUD operations
 - **Logging**: Multi-level logging với file rotation
 
@@ -39,13 +41,13 @@ src/main/java/com/sqc/sos/
 ### Yêu cầu hệ thống
 - Java 17+
 - MySQL 8.0+
-- Gradle 7.x+
+- Gradle wrapper đi kèm project
 
 ### Cài đặt
 ```bash
 # Clone repository
 git clone <repository-url>
-cd ordering-system-api
+cd ProjectSOS/sos-api
 
 # Cấu hình database
 # Chỉnh sửa application.properties với thông tin database
@@ -59,11 +61,7 @@ cd ordering-system-api
 -- Tạo database
 CREATE DATABASE sos;
 
--- Chạy migration scripts
--- V1.0.1__init_database.sql
--- V1.0.2__init_data.sql
--- V1.0.3__create_user_role.sql
--- V1.0.4__add_audit_columns.sql
+-- Flyway tự chạy migration trong src/main/resources/db/migration khi backend khởi động
 ```
 
 ## 🔐 Authentication
@@ -72,7 +70,7 @@ CREATE DATABASE sos;
 ```bash
 POST /auth/login
 {
-  "username": "thilh",
+  "username": "admin",
   "password": "admin123"
 }
 ```
@@ -92,14 +90,15 @@ Authorization: Bearer <token>
 ## 👥 Users và Roles
 
 ### Default Users
-- **thilh** (staff): Chỉ có quyền xem students
 - **admin/admin123**: Quản trị viên, có tất cả quyền
 - **staff/staff123**: Nhân viên phục vụ
 - **kitchen/kitchen123**: Nhân viên bếp
 
 ### Roles
-- **STAFF**: Xem danh sách students
-- **ADMIN**: Tất cả quyền (CRUD users, students)
+- **ADMIN**: Quản trị hệ thống, menu, bàn, nhân viên, QR, báo cáo
+- **MANAGER**: Quản lý vận hành nhà hàng
+- **STAFF**: Phục vụ, xử lý bàn, hóa đơn, yêu cầu khách
+- **KITCHEN**: Xử lý trạng thái món trong bếp
 
 ## 📊 API Endpoints
 
@@ -108,12 +107,21 @@ Authorization: Bearer <token>
 GET /health
 ```
 
-### Students
+### Menu
 ```bash
-GET /students                    # Lấy danh sách students (STAFF)
-POST /students                   # Tạo student mới (ADMIN)
-PUT /students/{id}              # Cập nhật student (ADMIN)
-DELETE /students/{id}           # Xóa student (ADMIN)
+GET /api/v1/menu-items/available      # Khách xem menu
+POST /api/v1/menu-items               # Admin/Manager tạo món
+PUT /api/v1/menu-items/{id}           # Admin/Manager sửa món
+DELETE /api/v1/menu-items/{id}        # Admin/Manager xóa món
+POST /api/v1/ai/menu/sync             # Admin/Manager đồng bộ menu sang AI
+```
+
+### Ordering
+```bash
+POST /api/v1/carts                    # Mở giỏ hàng theo bàn/session
+POST /api/v1/carts/{sessionId}/items  # Thêm món
+POST /api/v1/orders/session/{sessionId}/confirm
+GET /api/v1/tables                    # Xem bàn
 ```
 
 ### Users
@@ -127,8 +135,12 @@ POST /auth/register             # Đăng ký user mới (ADMIN)
 - **user**: Thông tin người dùng
 - **role**: Vai trò trong hệ thống
 - **user_roles**: Quan hệ many-to-many user-role
-- **student**: Thông tin học sinh
-- **clazz**: Thông tin lớp học
+- **menu_items**: Món ăn, đồ uống, combo và metadata AI
+- **tables**: Bàn nhà hàng và trạng thái phục vụ
+- **carts / cart_items**: Giỏ hàng theo session khách
+- **orders / order_items**: Đơn hàng và trạng thái món
+- **reviews / sentiment_results**: Đánh giá và kết quả phân tích cảm xúc
+- **invoices / payments**: Hóa đơn và thanh toán
 
 ### Audit Fields
 Tất cả bảng đều có các trường audit:
@@ -154,13 +166,6 @@ logs/
 ├── security.log       # Security logs
 └── sql.log           # SQL queries
 ```
-
-## 🔍 Soft Delete
-
-Hệ thống sử dụng soft delete để bảo toàn dữ liệu:
-- Không xóa thực sự khỏi database
-- Có thể khôi phục dữ liệu
-- Audit trail đầy đủ
 
 ## 🚨 Exception Handling
 

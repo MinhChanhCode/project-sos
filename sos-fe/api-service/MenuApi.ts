@@ -13,6 +13,15 @@ export type MenuItemCreateRequest = {
   categoryId: number;
   isAvailable?: boolean;
   isActive?: boolean;
+  type?: string;
+  tasteTags?: string;
+  spicyLevel?: number;
+  ingredients?: string;
+  allergens?: string;
+  suitableFor?: string;
+  pairing?: string;
+  isVegetarian?: boolean;
+  prepTimeMinutes?: number;
 };
 
 // Helper function to convert relative image URLs to absolute URLs

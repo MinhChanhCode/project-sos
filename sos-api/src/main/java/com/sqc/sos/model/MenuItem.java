@@ -31,6 +31,30 @@ public class MenuItem {
     Boolean isAvailable;
     Boolean isActive;
 
+    @Column(length = 80)
+    String type;
+
+    @Column(length = 500)
+    String tasteTags;
+
+    Integer spicyLevel;
+
+    @Column(length = 800)
+    String ingredients;
+
+    @Column(length = 500)
+    String allergens;
+
+    @Column(length = 500)
+    String suitableFor;
+
+    @Column(length = 500)
+    String pairing;
+
+    Boolean isVegetarian;
+
+    Integer prepTimeMinutes;
+
     // Promotion fields (nullable)
     BigDecimal originalPrice;
     BigDecimal promotionalPrice;

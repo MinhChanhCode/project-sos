@@ -24,7 +24,7 @@ public class HealthCheckController {
         Map<String, Object> healthInfo = new HashMap<>();
         healthInfo.put("status", "UP");
         healthInfo.put("timestamp", LocalDateTime.now());
-        healthInfo.put("service", "Student Ordering System API");
+        healthInfo.put("service", "SOS Restaurant Ordering API");
         healthInfo.put("version", "1.0.0");
         
         return ResponseUtils.ok(healthInfo);

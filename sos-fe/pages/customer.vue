@@ -91,6 +91,7 @@
         :table-id="tableId"
         :table-name="tableName"
         :session-id="sessionId"
+        :hidden="floatingActionsHidden"
       />
 
       <!-- Bottom Actions -->
@@ -182,12 +183,13 @@
         </UCard>
       </UModal>
 
-      <CustomerChatbot :session-id="sessionId" />
+      <CustomerChatbot :session-id="sessionId" :hidden="floatingActionsHidden" />
       <CustomerStaffChat
         :table-id="tableId || ''"
         :table-name="tableName"
         :session-id="sessionId"
         :customer-name="customerName"
+        :hidden="floatingActionsHidden"
       />
     </div>
   </NuxtLayout>
@@ -238,6 +240,9 @@ const {
 
 // Table name for service request
 const tableName = computed(() => `Bàn ${tableNumber.value}`);
+const floatingActionsHidden = computed(
+  () => showCustomerNameDialog.value || showCart.value || showRatingDialog.value
+);
 
 // Listen realtime: khi bàn được dọn -> xóa cache local của session hiện tại
 onMounted(() => {

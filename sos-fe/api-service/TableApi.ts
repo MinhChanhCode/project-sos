@@ -27,6 +27,7 @@ export interface TableDetailResponse {
 export interface TableListItemResponse {
   id: string
   name: string
+  tableNumber?: number
   capacity: number
   isAvailable: boolean
   status?: string

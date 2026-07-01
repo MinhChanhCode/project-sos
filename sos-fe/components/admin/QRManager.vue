@@ -71,7 +71,7 @@
         </div>
         <div class="flex justify-center">
           <qrcode-vue
-            :value="buildUrl(t.tableNumber)"
+            :value="buildUrl(t)"
             :size="qrSize"
             level="H"
             render-as="svg"
@@ -79,7 +79,7 @@
           />
         </div>
         <div class="text-center text-xs text-gray-500 mt-2 break-all">
-          {{ buildUrl(t.tableNumber) }}
+          {{ buildUrl(t) }}
         </div>
       </div>
     </div>
@@ -95,14 +95,14 @@
           <div class="text-center font-semibold mb-2">Bàn {{ t.tableNumber }}</div>
           <div class="flex justify-center">
             <qrcode-vue
-              :value="buildUrl(t.tableNumber)"
+              :value="buildUrl(t)"
               :size="qrSize"
               level="H"
               render-as="svg"
               :margin="2"
             />
           </div>
-          <div class="text-center text-xs mt-2">{{ buildUrl(t.tableNumber) }}</div>
+          <div class="text-center text-xs mt-2">{{ buildUrl(t) }}</div>
         </div>
       </div>
     </div>
@@ -114,12 +114,14 @@ import { ref, computed, onMounted } from "vue";
 import QrcodeVue from "qrcode.vue";
 import { useRuntimeConfig } from "nuxt/app";
 import { TableApi } from "@/api-service";
+import { qrCodeApi } from "@/api-service/ExtendedApi";
 import { getStandardTableNumber, normalizeStandardTables } from "~/utils/tableLimits";
 
 interface TableItemOpt {
   id: string;
   name: string;
   tableNumber: number;
+  qrCode?: string;
 }
 
 const tables = ref<TableItemOpt[]>([]);
@@ -199,8 +201,14 @@ const qrModeClass = computed(() => {
   return "border-green-500/40 bg-green-500/10 text-green-100";
 });
 
-const buildUrl = (tableNumber: number) =>
-  `${baseUrl.value}/customer/table/${encodeURIComponent(String(tableNumber))}`;
+const buildUrl = (table: TableItemOpt) => {
+  const params = new URLSearchParams({
+    tableId: table.id,
+    tableNumber: String(table.tableNumber),
+    qrCode: table.qrCode || table.id,
+  });
+  return `${baseUrl.value}/customer/table/${encodeURIComponent(String(table.tableNumber))}?${params.toString()}`;
+};
 
 const fetchTables = async () => {
   const list = await TableApi.list();
@@ -209,11 +217,28 @@ const fetchTables = async () => {
     : Array.isArray(list)
     ? list
     : [];
-  tables.value = normalizeStandardTables(items as any[]).map((t: any) => ({
+  const normalized = normalizeStandardTables(items as any[]).map((t: any) => ({
     id: String(t.id),
     name: String(t.name ?? t.number ?? t.id),
     tableNumber: getStandardTableNumber(t) || Number(String(t.name || "").replace(/\D+/g, "")),
   }));
+
+  tables.value = await Promise.all(
+    normalized.map(async (table) => {
+      try {
+        const qr = (await qrCodeApi.generate(table.id)) as { qrToken?: string };
+        return {
+          ...table,
+          qrCode: String(qr?.qrToken || table.id),
+        };
+      } catch {
+        return {
+          ...table,
+          qrCode: table.id,
+        };
+      }
+    })
+  );
 };
 
 const fetchPublicQrUrl = async () => {

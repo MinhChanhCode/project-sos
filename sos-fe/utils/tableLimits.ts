@@ -4,6 +4,7 @@ type TableLike = {
   id?: string | number
   name?: string
   number?: string
+  tableNumber?: string | number | null
   posX?: number
   posY?: number
 }
@@ -50,6 +51,15 @@ export const getTableLabel = (table: TableLike) =>
   String(table.name || table.number || table.id || '')
 
 export const getStandardTableNumber = (table: TableLike) => {
+  const explicitNumber = Number(table.tableNumber)
+  if (
+    Number.isInteger(explicitNumber) &&
+    explicitNumber >= 1 &&
+    explicitNumber <= MAX_FLOOR_PLAN_TABLES
+  ) {
+    return explicitNumber
+  }
+
   const match = getTableLabel(table)
     .trim()
     .match(/^Bàn\s*(\d+)$/i)
@@ -84,6 +94,7 @@ export const normalizeStandardTables = <T extends TableLike>(tables: T[]) => {
       ...table,
       name: getDefaultTableName(tableNumber),
       number: getDefaultTableName(tableNumber),
+      tableNumber,
       posX: useSavedPosition(table.posX) ? table.posX : defaultPosition.posX,
       posY: useSavedPosition(table.posY) ? table.posY : defaultPosition.posY,
     }

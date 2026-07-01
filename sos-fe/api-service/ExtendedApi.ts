@@ -82,3 +82,10 @@ export const chatApi = {
   history: (sessionId: string) =>
     baseApiFetch<any>(`/api/v1/chat/history/${sessionId}`, { skipAuth: true }).then(unwrap),
 };
+
+export const qrCodeApi = {
+  generate: (tableId: string) =>
+    baseApiFetch<any>(`/api/v1/qr-codes/table/${tableId}/generate`, { method: "POST" }).then(unwrap),
+  resolve: (token: string) =>
+    baseApiFetch<any>(`/api/v1/qr-codes/token/${encodeURIComponent(token)}`, { skipAuth: true }).then(unwrap),
+};

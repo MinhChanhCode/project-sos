@@ -152,19 +152,17 @@
 }
 
 @media (max-width: 600px) {
-  /* Override mọi modal phổ biến để luôn căn giữa trên mobile */
+  /* Chỉ căn giữa modal của Nuxt UI, tránh ảnh hưởng component khác. */
   .UModal__container,
   .umodal-container,
-  .u-modal-container,
-  [class*="modal"] {
+  .u-modal-container {
     align-items: center !important;
     justify-content: center !important;
     display: flex !important;
   }
   .UModal__content,
   .umodal-content,
-  .u-modal,
-  [class*="modal"] > * {
+  .u-modal {
     margin: 0 auto !important;
     top: 50% !important;
     left: 50% !important;

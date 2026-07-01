@@ -43,7 +43,7 @@ public class QrCodeService {
             return toResponse(existing.get());
         }
         String token = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-        String url = buildPublicCustomerUrl(table);
+        String url = buildPublicCustomerUrl(table, token);
         QrCode qr = QrCode.builder()
                 .tableId(tableId)
                 .codeUrl(url)
@@ -60,7 +60,7 @@ public class QrCodeService {
     }
 
     private QrCodeResponse toResponse(QrCode qr) {
-        String codeUrl = buildPublicCustomerUrl(qr.getTableId(), qr.getCodeUrl());
+        String codeUrl = buildPublicCustomerUrl(qr.getTableId(), qr.getQrToken(), qr.getCodeUrl());
         return QrCodeResponse.builder()
                 .id(qr.getId())
                 .tableId(qr.getTableId())
@@ -70,21 +70,27 @@ public class QrCodeService {
                 .build();
     }
 
-    private String buildPublicCustomerUrl(TableEntity table) {
-        return buildPublicCustomerUrl(table.getId(), null);
+    private String buildPublicCustomerUrl(TableEntity table, String qrToken) {
+        return buildPublicCustomerUrl(table.getId(), qrToken, null);
     }
 
-    private String buildPublicCustomerUrl(UUID tableId, String fallbackUrl) {
+    private String buildPublicCustomerUrl(UUID tableId, String qrToken, String fallbackUrl) {
         String baseUrl = normalizeBaseUrl(qrBaseUrl);
         TableEntity table = tableRepository.findById(tableId).orElse(null);
         Integer tableNumber = table != null ? getStandardTableNumber(table.getName()) : null;
         if (tableNumber != null) {
-            return baseUrl + "/customer/table/" + tableNumber;
+            return baseUrl
+                    + "/customer/table/" + tableNumber
+                    + "?tableId=" + tableId
+                    + "&tableNumber=" + tableNumber
+                    + (qrToken != null && !qrToken.isBlank() ? "&qrCode=" + qrToken : "");
         }
         if (fallbackUrl != null && !fallbackUrl.isBlank() && !isLocalUrl(fallbackUrl)) {
             return fallbackUrl;
         }
-        return baseUrl + "/customer?tableId=" + tableId;
+        return baseUrl
+                + "/customer?tableId=" + tableId
+                + (qrToken != null && !qrToken.isBlank() ? "&qrCode=" + qrToken : "");
     }
 
     private String normalizeBaseUrl(String value) {

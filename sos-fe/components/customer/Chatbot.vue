@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed bottom-40 right-4 z-50">
+  <div v-if="!hidden" class="fixed bottom-56 right-4 z-30">
     <UButton
       v-if="!open"
       icon="i-lucide-message-circle"
@@ -42,7 +42,7 @@
 import { chatApi } from "~/api-service/ExtendedApi";
 import { nextTick, onMounted, ref } from "vue";
 
-const props = defineProps<{ sessionId?: string }>();
+const props = defineProps<{ sessionId?: string; hidden?: boolean }>();
 
 const open = ref(false);
 const input = ref("");

@@ -20,6 +20,15 @@ export interface MenuItem {
   promotionEndDate?: string; // ISO string
   isPromotional?: boolean;
   popularityScore?: number;
+  type?: string;
+  tasteTags?: string;
+  spicyLevel?: number;
+  ingredients?: string;
+  allergens?: string;
+  suitableFor?: string;
+  pairing?: string;
+  isVegetarian?: boolean;
+  prepTimeMinutes?: number;
 }
 
 export interface CartItem extends MenuItem {

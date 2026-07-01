@@ -19,4 +19,13 @@ public class MenuItemRequest {
     Long categoryId;
     Boolean isAvailable;
     Boolean isActive;
+    String type;
+    String tasteTags;
+    Integer spicyLevel;
+    String ingredients;
+    String allergens;
+    String suitableFor;
+    String pairing;
+    Boolean isVegetarian;
+    Integer prepTimeMinutes;
 } 

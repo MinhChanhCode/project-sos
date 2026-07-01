@@ -5,7 +5,7 @@ import { useNuxtApp } from 'nuxt/app'
 import { deriveOrderItemStatus } from '@/utils/formatters'
 import type { toast as toastType } from 'vue3-toastify'
 import { OrderItemApi } from '@/api-service'
-import { limitFloorPlanTables } from '~/utils/tableLimits'
+import { getDefaultTableName, getStandardTableNumber, limitFloorPlanTables } from '~/utils/tableLimits'
 import { getTableDisplayStatus } from '~/utils/tableStatus'
 import { useNotificationSound } from '~/utils/notificationSound'
 
@@ -17,6 +17,7 @@ export const useStaff = () => {
   interface Table {
     id: string
     number: string
+    tableNumber?: number
     status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "đã phục vụ" | "sẵn sàng" | "đang chế biến" | "served" | "ready" | "preparing" | "có khách"
     customers: number
     assignedStaff: string
@@ -79,20 +80,24 @@ export const useStaff = () => {
       const list = await TableApi.list()
       // Map backend tables to store format (keep existing shape)
       const tables = Array.isArray(list) ? list : ((list as any)?.data && Array.isArray((list as any).data) ? (list as any).data : [])
-      const mapped = limitFloorPlanTables(tables as any[]).map((t: any) => ({
-        id: String(t.id),
-        number: t.name,
-        status: t.isAvailable ? 'trống' as const : 'có khách',
-        customers: t.isAvailable ? 0 : 1,
-        orders: [],
-        assignedStaff: '',
-        totalAmount: 0,
-        posX: t.posX || 0,
-        posY: t.posY || 0,
-        tableStatus: t.tableStatus || 'EMPTY',
-        isAvailable: t.isAvailable,
-        activeOrderId: t.activeOrderId,
-      }))
+      const mapped = limitFloorPlanTables(tables as any[]).map((t: any) => {
+        const tableNumber = getStandardTableNumber(t)
+        return {
+          id: String(t.id),
+          number: tableNumber ? getDefaultTableName(tableNumber) : String(t.name || t.number || t.id),
+          tableNumber: tableNumber || undefined,
+          status: t.isAvailable ? 'trống' as const : 'có khách',
+          customers: t.isAvailable ? 0 : 1,
+          orders: [],
+          assignedStaff: '',
+          totalAmount: 0,
+          posX: t.posX || 0,
+          posY: t.posY || 0,
+          tableStatus: t.tableStatus || 'EMPTY',
+          isAvailable: t.isAvailable,
+          activeOrderId: t.activeOrderId,
+        }
+      })
       ;(staffStore as any).tables = mapped
 
       // Hydrate chi tiết bàn + món trong bàn nếu có order đang mở

@@ -11,23 +11,6 @@ import org.springframework.http.HttpStatus;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public enum ErrorCode {
     // =============================================================================
-    // STUDENT ERRORS (404xx)
-    // =============================================================================
-    STUDENT_NOT_EXIST(40401, "Student not found", HttpStatus.NOT_FOUND),
-    STUDENT_ALREADY_EXIST(40402, "Student already exists with this email", HttpStatus.CONFLICT),
-    STUDENT_INVALID_AGE(40403, "Invalid student age", HttpStatus.BAD_REQUEST),
-    STUDENT_INVALID_SCORE(40404, "Invalid score (must be between 0.0 and 10.0)", HttpStatus.BAD_REQUEST),
-    STUDENT_INVALID_EMAIL(40405, "Invalid email format", HttpStatus.BAD_REQUEST),
-    STUDENT_INVALID_PHONE(40406, "Invalid phone number format", HttpStatus.BAD_REQUEST),
-
-    // =============================================================================
-    // CLASS ERRORS (405xx)
-    // =============================================================================
-    CLASS_NOT_EXIST(40501, "Class not found", HttpStatus.NOT_FOUND),
-    CLASS_ALREADY_EXIST(40502, "Class already exists", HttpStatus.CONFLICT),
-    CLASS_FULL(40503, "Class is full", HttpStatus.CONFLICT),
-
-    // =============================================================================
     // USER ERRORS (406xx)
     // =============================================================================
     USER_NOT_EXIST(40601, "User not found", HttpStatus.NOT_FOUND),

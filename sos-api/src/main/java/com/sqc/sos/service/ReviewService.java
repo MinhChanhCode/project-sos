@@ -13,10 +13,13 @@ import com.sqc.sos.repository.IReviewRepository;
 import com.sqc.sos.repository.ISentimentResultRepository;
 import com.sqc.sos.repository.ITableRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -28,6 +31,9 @@ public class ReviewService {
     private final ISentimentResultRepository sentimentResultRepository;
     private final ICustomerSessionRepository customerSessionRepository;
     private final ITableRepository tableRepository;
+
+    @Value("${ai.service.url:}")
+    private String aiServiceUrl;
 
     public List<ReviewResponse> listAll() {
         return reviewRepository.findAll().stream().map(this::toResponse).toList();
@@ -44,7 +50,7 @@ public class ReviewService {
                 .build();
         review = reviewRepository.save(review);
 
-        SentimentAnalysis analysis = analyzeSentiment(request.getRating(), request.getComment());
+        SentimentAnalysis analysis = analyzeSentimentWithAi(request.getRating(), request.getComment());
         SentimentResult sentiment = SentimentResult.builder()
                 .reviewId(review.getId())
                 .sentiment(analysis.sentiment())
@@ -110,6 +116,28 @@ public class ReviewService {
             return new SentimentAnalysis("NEGATIVE", new BigDecimal("0.80"));
         }
         return new SentimentAnalysis("NEUTRAL", new BigDecimal("0.70"));
+    }
+
+    private SentimentAnalysis analyzeSentimentWithAi(Integer rating, String comment) {
+        if (aiServiceUrl != null && !aiServiceUrl.isBlank() && comment != null && !comment.isBlank()) {
+            try {
+                Map<?, ?> response = WebClient.create(aiServiceUrl)
+                        .post()
+                        .uri("/sentiment")
+                        .bodyValue(Map.of("text", comment))
+                        .retrieve()
+                        .bodyToMono(Map.class)
+                        .block(Duration.ofSeconds(3));
+                if (response != null && response.get("sentiment") != null) {
+                    String sentiment = response.get("sentiment").toString();
+                    Object confidenceValue = response.get("confidence");
+                    BigDecimal confidence = new BigDecimal(String.valueOf(confidenceValue != null ? confidenceValue : "0.75"));
+                    return new SentimentAnalysis(sentiment, confidence);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return analyzeSentiment(rating, comment);
     }
 
     private boolean containsNegative(String text) {

@@ -39,6 +39,15 @@ export const useAdmin = () => {
     category: "", // sẽ lưu id dạng string -> sẽ chuyển sang number khi gửi API
     description: "",
     imageFile: null as File | null,
+    type: "MAIN",
+    tasteTags: "",
+    spicyLevel: 0,
+    ingredients: "",
+    allergens: "",
+    suitableFor: "",
+    pairing: "",
+    isVegetarian: false,
+    prepTimeMinutes: 15,
   });
 
   const tabs = ref([
@@ -204,6 +213,15 @@ export const useAdmin = () => {
         categoryId: Number(newItemForm.value.category),
         isAvailable: true,
         isActive: true,
+        type: newItemForm.value.type,
+        tasteTags: newItemForm.value.tasteTags,
+        spicyLevel: Number(newItemForm.value.spicyLevel),
+        ingredients: newItemForm.value.ingredients,
+        allergens: newItemForm.value.allergens,
+        suitableFor: newItemForm.value.suitableFor,
+        pairing: newItemForm.value.pairing,
+        isVegetarian: newItemForm.value.isVegetarian,
+        prepTimeMinutes: Number(newItemForm.value.prepTimeMinutes),
       };
 
       await menuApi.create(payload);
@@ -216,6 +234,15 @@ export const useAdmin = () => {
         category: "",
         description: "",
         imageFile: null,
+        type: "MAIN",
+        tasteTags: "",
+        spicyLevel: 0,
+        ingredients: "",
+        allergens: "",
+        suitableFor: "",
+        pairing: "",
+        isVegetarian: false,
+        prepTimeMinutes: 15,
       } as any;
       showAddItem.value = false;
     } catch (e: any) {

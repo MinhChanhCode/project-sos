@@ -27,24 +27,6 @@
         </div>
       </button>
     </div>
-
-    <div class="overflow-x-auto pb-2 mb-6">
-      <div class="relative h-[900px] min-w-[1380px] overflow-hidden rounded-2xl border-2 border-dashed border-slate-500/80 bg-slate-900 shadow-inner">
-        <div
-          v-for="table in displayedTables"
-          :key="table.id"
-          class="absolute select-none"
-          :style="{ left: `${table.posX || 0}px`, top: `${table.posY || 0}px` }"
-        >
-          <SharedFloorPlanTable
-            :number="table.tableNumber"
-            :status="table.displayStatus"
-            readonly
-            @select="$emit('select-table', table)"
-          />
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 

@@ -30,6 +30,7 @@ public class MenuItemService implements IMenuItemService {
     private final ICategoryRepository categoryRepository;
     private final com.sqc.sos.repository.IOrderItemRepository orderItemRepository;
     private final IMenuItemMapper menuItemMapper;
+    private final MenuAiSyncService menuAiSyncService;
     
     @Override
     @Transactional(readOnly = true)
@@ -84,6 +85,7 @@ public class MenuItemService implements IMenuItemService {
         menuItem.setCategory(category);
         
         MenuItem savedMenuItem = menuItemRepository.save(menuItem);
+        menuAiSyncService.syncMenuSafely();
         return menuItemMapper.toResponse(savedMenuItem);
     }
     
@@ -118,11 +120,36 @@ public class MenuItemService implements IMenuItemService {
         if (request.getIsActive() != null) {
             existingMenuItem.setIsActive(request.getIsActive());
         }
-        // Optional inventory fields from request (if your DTO has them later)
-        // if (request.getStockQuantity() != null) existingMenuItem.setStockQuantity(request.getStockQuantity());
-        // if (request.getIsLimitedStock() != null) existingMenuItem.setIsLimitedStock(request.getIsLimitedStock());
+        if (request.getType() != null) {
+            existingMenuItem.setType(request.getType());
+        }
+        if (request.getTasteTags() != null) {
+            existingMenuItem.setTasteTags(request.getTasteTags());
+        }
+        if (request.getSpicyLevel() != null) {
+            existingMenuItem.setSpicyLevel(request.getSpicyLevel());
+        }
+        if (request.getIngredients() != null) {
+            existingMenuItem.setIngredients(request.getIngredients());
+        }
+        if (request.getAllergens() != null) {
+            existingMenuItem.setAllergens(request.getAllergens());
+        }
+        if (request.getSuitableFor() != null) {
+            existingMenuItem.setSuitableFor(request.getSuitableFor());
+        }
+        if (request.getPairing() != null) {
+            existingMenuItem.setPairing(request.getPairing());
+        }
+        if (request.getIsVegetarian() != null) {
+            existingMenuItem.setIsVegetarian(request.getIsVegetarian());
+        }
+        if (request.getPrepTimeMinutes() != null) {
+            existingMenuItem.setPrepTimeMinutes(request.getPrepTimeMinutes());
+        }
         
         MenuItem updatedMenuItem = menuItemRepository.save(existingMenuItem);
+        menuAiSyncService.syncMenuSafely();
         return menuItemMapper.toResponse(updatedMenuItem);
     }
     
@@ -132,6 +159,7 @@ public class MenuItemService implements IMenuItemService {
                 .orElseThrow(() -> new AppException(ErrorCode.MENU_ITEM_NOT_FOUND));
         
         menuItemRepository.delete(menuItem);
+        menuAiSyncService.syncMenuSafely();
     }
     
     @Override
@@ -141,6 +169,7 @@ public class MenuItemService implements IMenuItemService {
         
         menuItem.setIsAvailable(!menuItem.getIsAvailable());
         menuItemRepository.save(menuItem);
+        menuAiSyncService.syncMenuSafely();
     }
     
     @Override
@@ -150,6 +179,7 @@ public class MenuItemService implements IMenuItemService {
         
         menuItem.setIsActive(!menuItem.getIsActive());
         menuItemRepository.save(menuItem);
+        menuAiSyncService.syncMenuSafely();
     }
 
     // ===== Promotions embedded in MenuItem =====
@@ -164,6 +194,7 @@ public class MenuItemService implements IMenuItemService {
         menuItem.setPromotionalPrice(promotionalPrice);
         menuItem.setPromotionEndDate(endDate);
         menuItemRepository.save(menuItem);
+        menuAiSyncService.syncMenuSafely();
     }
 
     @Override
@@ -174,6 +205,7 @@ public class MenuItemService implements IMenuItemService {
         menuItem.setPromotionalPrice(null);
         menuItem.setPromotionEndDate(null);
         menuItemRepository.save(menuItem);
+        menuAiSyncService.syncMenuSafely();
     }
 
     @Override

@@ -13,6 +13,7 @@ import java.util.UUID;
 public class TableListItemResponse {
     UUID id;
     String name;
+    Integer tableNumber;
     Integer capacity;
     Boolean isAvailable;
     String status;

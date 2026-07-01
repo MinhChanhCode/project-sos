@@ -80,6 +80,11 @@ export const useCustomer = () => {
       ? new URLSearchParams(window.location.search).get("tableId")
       : null
   );
+  const qrCode = ref<string | null>(
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("qrCode")
+      : null
+  );
   const hasValidTableId = () => !!tableId.value && tableId.value !== "null" && tableId.value !== "undefined";
   const groupMembers = ref<string[]>([]);
   const loadingMenu = ref(false);
@@ -287,6 +292,9 @@ export const useCustomer = () => {
   const resolveTableId = async () => {
     // Nếu đã có tableId, không cần làm gì
     if (hasValidTableId()) return
+    if (!String(tableNumber.value || "").trim()) {
+      throw new Error("Thiếu thông tin bàn. Vui lòng quét lại mã QR đúng bàn để bắt đầu đặt món.")
+    }
 
     try {
       console.log('Attempting to resolve tableId from tableNumber:', tableNumber.value)
@@ -316,13 +324,11 @@ export const useCustomer = () => {
               return asText === String(tableNumber.value) || normalizeTableLookup(asText) === lookup
             })
           })
-        : tableList[0]
+        : null
 
-      const resolvedTable = foundTable || tableList[0]
-      
-      if (resolvedTable) {
-        tableId.value = String(resolvedTable.id)
-        tableNumber.value = String(resolvedTable.name || resolvedTable.number || tableNumber.value || "")
+      if (foundTable) {
+        tableId.value = String(foundTable.id)
+        tableNumber.value = String(foundTable.name || foundTable.number || tableNumber.value || "")
         console.log('Successfully resolved tableId:', tableId.value)
       } else {
         throw new Error(`Không tìm thấy bàn với số: ${tableNumber.value}. Vui lòng kiểm tra lại URL hoặc liên hệ nhân viên.`)
@@ -807,6 +813,7 @@ export const useCustomer = () => {
     searchQuery,
     tableNumber,
     tableId,
+    qrCode,
     sessionId, // Expose sessionId
     customerName,
     groupMembers,

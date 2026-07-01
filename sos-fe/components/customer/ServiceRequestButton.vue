@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed bottom-24 right-4 z-50">
+  <div v-if="!hidden && tableId" class="fixed bottom-40 right-4 z-30">
     <!-- Service Request Button -->
     <UButton
       @click="showServiceRequestModal = true"
@@ -261,7 +261,7 @@ interface Props {
   sessionId: string;
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props & { hidden?: boolean }>();
 
 // Reactive data
 const showServiceRequestModal = ref(false);

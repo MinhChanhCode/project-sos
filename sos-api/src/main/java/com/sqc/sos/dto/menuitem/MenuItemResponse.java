@@ -21,6 +21,15 @@ public class MenuItemResponse {
     String categoryName;
     Boolean isAvailable;
     Boolean isActive;
+    String type;
+    String tasteTags;
+    Integer spicyLevel;
+    String ingredients;
+    String allergens;
+    String suitableFor;
+    String pairing;
+    Boolean isVegetarian;
+    Integer prepTimeMinutes;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 

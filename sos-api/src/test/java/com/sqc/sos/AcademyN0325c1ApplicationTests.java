@@ -15,7 +15,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
 @SpringBootTest
-class StudentApplicationTests {
+class SOSApplicationTests {
 	@Value("${jwt.signerKey}")
 	private String SIGNER_KEY;
 
@@ -40,8 +40,7 @@ class StudentApplicationTests {
 				.expirationTime(new Date( // Set JWT expiration time to 1 hour from issue time
 						Instant.now().plus(1, ChronoUnit.HOURS).toEpochMilli()
 				))
-				// Add a custom claim containing Student object information
-				.claim("student", "Thi")
+				.claim("scope", "ADMIN")
 				.build(); // Build JWTClaimsSet object
 
 		// Create payload from claims, convert claims object to JSON format

@@ -34,6 +34,48 @@
         <UFormGroup label="Mô tả" name="description">
           <UTextarea v-model="form.description" placeholder="Mô tả món ăn" />
         </UFormGroup>
+
+        <div class="rounded-lg border border-orange-100 bg-orange-50/60 p-3 dark:border-gray-800 dark:bg-gray-900">
+          <div class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
+            <Icon name="lucide:sparkles" class="h-4 w-4 text-orange-500" />
+            Dữ liệu AI tư vấn món
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UFormGroup label="Loại món">
+              <USelect
+                v-model="form.type"
+                :options="menuTypeOptions"
+              />
+            </UFormGroup>
+            <UFormGroup label="Độ cay (0-3)">
+              <UInput v-model.number="form.spicyLevel" type="number" min="0" max="3" />
+            </UFormGroup>
+            <UFormGroup label="Thời gian chuẩn bị">
+              <UInput v-model.number="form.prepTimeMinutes" type="number" min="1" placeholder="15" />
+            </UFormGroup>
+            <UFormGroup label="Ăn chay">
+              <div class="flex h-10 items-center gap-2">
+                <UToggle v-model="form.isVegetarian" />
+                <span class="text-sm text-gray-600 dark:text-gray-300">Phù hợp ăn chay</span>
+              </div>
+            </UFormGroup>
+            <UFormGroup class="sm:col-span-2" label="Tag khẩu vị">
+              <UInput v-model="form.tasteTags" placeholder="ngọt, béo, thanh nhẹ, cay..." />
+            </UFormGroup>
+            <UFormGroup class="sm:col-span-2" label="Nguyên liệu">
+              <UTextarea v-model="form.ingredients" rows="2" placeholder="bò, trứng, sữa, hải sản..." />
+            </UFormGroup>
+            <UFormGroup label="Dị ứng/cần tránh">
+              <UInput v-model="form.allergens" placeholder="hải sản, sữa, đậu phộng..." />
+            </UFormGroup>
+            <UFormGroup label="Phù hợp với">
+              <UInput v-model="form.suitableFor" placeholder="đi nhóm, bữa sáng, không cay..." />
+            </UFormGroup>
+            <UFormGroup class="sm:col-span-2" label="Gợi ý đi kèm">
+              <UInput v-model="form.pairing" placeholder="trà tắc, nước cam, gỏi cuốn..." />
+            </UFormGroup>
+          </div>
+        </div>
       </UForm>
 
       <template #footer>
@@ -59,6 +101,15 @@ interface FormData {
   category: string;
   description: string;
   imageFile?: File | null;
+  type?: string;
+  tasteTags?: string;
+  spicyLevel?: number;
+  ingredients?: string;
+  allergens?: string;
+  suitableFor?: string;
+  pairing?: string;
+  isVegetarian?: boolean;
+  prepTimeMinutes?: number;
 }
 
 interface Props {
@@ -78,6 +129,14 @@ const emit = defineEmits<{
   close: [];
   submit: [form: FormData];
 }>();
+
+const menuTypeOptions = [
+  { label: "Món chính", value: "MAIN" },
+  { label: "Đồ uống", value: "DRINK" },
+  { label: "Khai vị", value: "APPETIZER" },
+  { label: "Tráng miệng", value: "DESSERT" },
+  { label: "Combo", value: "COMBO" },
+];
 
 const onFileChange = (e: Event) => {
   const input = e.target as HTMLInputElement;

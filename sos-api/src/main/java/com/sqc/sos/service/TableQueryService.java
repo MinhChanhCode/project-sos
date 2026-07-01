@@ -88,6 +88,7 @@ public class TableQueryService {
                     return TableListItemResponse.builder()
                             .id(t.getId())
                             .name(t.getName())
+                            .tableNumber(tableNumber)
                             .capacity(t.getCapacity())
                             .isAvailable(t.getIsAvailable())
                             .status(status)

@@ -3,6 +3,7 @@ import { defineStore } from "pinia"
 export interface Table {
   id: string
   number: string
+  tableNumber?: number
   status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "đã phục vụ" | "sẵn sàng" | "đang chế biến" | "có khách"
   customers: number
   orders: Order[]

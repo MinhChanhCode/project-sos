@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed bottom-24 right-3 z-50 sm:right-4">
+  <div v-if="!hidden && tableId" class="fixed bottom-24 right-3 z-30 sm:right-4">
     <UButton
       v-if="!open"
       icon="i-lucide-message-square"
@@ -65,6 +65,7 @@ const props = defineProps<{
   tableName: string
   sessionId: string
   customerName: string
+  hidden?: boolean
 }>();
 
 const open = ref(false);

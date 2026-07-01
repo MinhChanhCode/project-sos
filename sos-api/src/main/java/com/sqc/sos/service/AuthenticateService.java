@@ -103,7 +103,7 @@ public class AuthenticateService implements IAuthenticateService {
                 .expirationTime(new Date( // Set JWT expiration time to 1 hour from issue time
                         Instant.now().plus(1, ChronoUnit.HOURS).toEpochMilli()
                 ))
-                // Thêm một custom claim (thông tin tùy chỉnh) vào JWT, chứa thông tin về đối tượng Student
+                // Thêm danh sách role vào JWT để Spring Security phân quyền.
                 .claim("scope", getRoles(user))
                 .build(); // Xây dựng đối tượng JWTClaimsSet
 
