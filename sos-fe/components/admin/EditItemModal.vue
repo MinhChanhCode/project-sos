@@ -15,11 +15,11 @@
         </UFormGroup>
         
         <UFormGroup label="Danh mục" name="category">
-          <UInput v-model="item.category" />
+          <UInput v-model="item.categoryId" />
         </UFormGroup>
         
         <UFormGroup label="Trạng thái">
-          <UToggle v-model="item.available" />
+          <UToggle v-model="item.isAvailable" />
           <span class="ml-2 text-sm">Có sẵn</span>
         </UFormGroup>
       </UForm>

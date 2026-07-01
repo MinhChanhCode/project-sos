@@ -25,7 +25,7 @@
           :style="{ left: `${table.posX || 0}px`, top: `${table.posY || 0}px` }"
           @mousedown="startDrag($event, table)"
         >
-          <SharedFloorPlanTable :number="table.tableNumber" :status="table.tableStatus" />
+          <SharedFloorPlanTable :number="table.tableNumber" :status="table.displayStatus" />
         </div>
         <p v-if="!visibleTables.length" class="absolute inset-0 flex items-center justify-center text-gray-400">
           Chưa có bàn trong sơ đồ
@@ -39,6 +39,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useNuxtApp } from "nuxt/app";
 import { TableApi } from "~/api-service/TableApi";
+import { getTableDisplayStatus } from "~/utils/tableStatus";
 import {
   DEFAULT_TABLE_AREA_ID,
   MAX_FLOOR_PLAN_TABLES,
@@ -60,6 +61,7 @@ const visibleTables = computed(() =>
   normalizeStandardTables(tables.value).map((table: any) => ({
     ...table,
     tableNumber: getStandardTableNumber(table) || "",
+    displayStatus: getTableDisplayStatus(table),
   })),
 );
 
@@ -167,5 +169,12 @@ onMounted(async () => {
   if (!hasReachedTableLimit.value) {
     await syncDefaultTables();
   }
+  const nuxt = useNuxtApp() as any;
+  nuxt?.$realtime?.subscribe?.("/topic/management/tables", (msg: any) => {
+    if (msg?.type === "TABLE_STATUS_CHANGED") load();
+  });
+  nuxt?.$realtime?.subscribe?.("/topic/management/order-items", (msg: any) => {
+    if (msg?.type === "ORDERED_UPDATED" || msg?.type === "ORDER_ITEM_STATUS_CHANGED") load();
+  });
 });
 </script>

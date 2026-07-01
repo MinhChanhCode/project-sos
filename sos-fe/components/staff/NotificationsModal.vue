@@ -34,7 +34,7 @@ import { useStaffStore } from '@/stores/staff'
 
 interface Notification {
   id: string
-  type: 'kitchen' | 'call' | 'order'
+  type: 'kitchen' | 'call' | 'order' | 'chat'
   message: string
   time: string
 }
@@ -59,7 +59,8 @@ const getNotificationIcon = (type: string) => {
   const icons: Record<string, string> = {
     'kitchen': 'lucide:chef-hat',
     'call': 'lucide:bell',
-    'order': 'lucide:utensils'
+    'order': 'lucide:utensils',
+    'chat': 'lucide:message-circle'
   }
   return icons[type] || 'lucide:bell'
 }
@@ -68,7 +69,8 @@ const getNotificationIconColor = (type: string) => {
   const colors: Record<string, string> = {
     'kitchen': 'text-orange-500',
     'call': 'text-blue-500',
-    'order': 'text-green-500'
+    'order': 'text-green-500',
+    'chat': 'text-violet-500'
   }
   return colors[type] || 'text-gray-500'
 }

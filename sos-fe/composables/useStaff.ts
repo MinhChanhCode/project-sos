@@ -6,6 +6,8 @@ import { deriveOrderItemStatus } from '@/utils/formatters'
 import type { toast as toastType } from 'vue3-toastify'
 import { OrderItemApi } from '@/api-service'
 import { limitFloorPlanTables } from '~/utils/tableLimits'
+import { getTableDisplayStatus } from '~/utils/tableStatus'
+import { useNotificationSound } from '~/utils/notificationSound'
 
 export const useStaff = () => {
   // Store
@@ -15,10 +17,15 @@ export const useStaff = () => {
   interface Table {
     id: string
     number: string
-    status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "served" | "ready" | "preparing"
+    status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "đã phục vụ" | "sẵn sàng" | "đang chế biến" | "served" | "ready" | "preparing" | "có khách"
     customers: number
     assignedStaff: string
     totalAmount: number
+    posX?: number
+    posY?: number
+    tableStatus?: string
+    isAvailable?: boolean
+    activeOrderId?: number | string | null
     orders: Array<{
       id: string
       items: Array<{
@@ -41,6 +48,7 @@ export const useStaff = () => {
   const showStaffChat = ref(false)
   const staffRole = ref('server')
   const activeTab = ref('tables')
+  const { soundEnabled, toggleSound, playNotificationSound } = useNotificationSound()
 
   // Computed
   const showTableDetail = computed({
@@ -74,14 +82,16 @@ export const useStaff = () => {
       const mapped = limitFloorPlanTables(tables as any[]).map((t: any) => ({
         id: String(t.id),
         number: t.name,
-        status: t.isAvailable ? 'trống' as const : 'đang đặt',
-        customers: t.capacity || 0,
+        status: t.isAvailable ? 'trống' as const : 'có khách',
+        customers: t.isAvailable ? 0 : 1,
         orders: [],
         assignedStaff: '',
         totalAmount: 0,
         posX: t.posX || 0,
         posY: t.posY || 0,
         tableStatus: t.tableStatus || 'EMPTY',
+        isAvailable: t.isAvailable,
+        activeOrderId: t.activeOrderId,
       }))
       ;(staffStore as any).tables = mapped
 
@@ -94,6 +104,7 @@ export const useStaff = () => {
             const target = (staffStore as any).tables.find((x: any) => x.id === String(t.id))
             if (!target) return
             target.totalAmount = Number(d?.totalAmount || 0)
+            target.customers = d?.status === 'trống' ? 0 : Number(d?.customers || 1)
             // Có order hiện tại -> nạp danh sách món
             if (d?.orderId) {
               const items = await OrderItemApi.getByOrderId(Number(d.orderId))
@@ -214,6 +225,7 @@ export const useStaff = () => {
           if (!seenOrderIds.has(orderId)) {
             seenOrderIds.add(orderId)
             toast.info(`Đơn mới cho bếp: ${msg.tableName || ('Bàn ' + msg.tableId)} (Order #${orderId})`)
+            playNotificationSound()
             staffStore.addNotification({
               message: `Đơn mới - ${msg.tableName || ('Bàn ' + msg.tableId)}`,
               time: new Date().toLocaleTimeString(),
@@ -240,6 +252,7 @@ export const useStaff = () => {
           if (!(window as any).__seenItemIds.has(itemKey)) {
             (window as any).__seenItemIds.add(itemKey)
             toast.success(`Món xong: ${msg.menuItemName || ('#' + msg.orderItemId)} tại ${msg.tableName || ('Bàn ' + msg.tableId)}`)
+            playNotificationSound()
             staffStore.addNotification({
               message: `Món xong: ${msg.menuItemName || ('#' + msg.orderItemId)} - ${msg.tableName || ('Bàn ' + msg.tableId)}`,
               time: new Date().toLocaleTimeString(),
@@ -306,6 +319,9 @@ export const useStaff = () => {
           await nuxt.$realtime.subscribe(`/topic/tables/${id}/ordered`, (msg: any) => {
             if (msg?.type === 'ORDERED_UPDATED' && Array.isArray(msg.items)) {
               upsertOrderItemsToTable(t, msg.items)
+              t.status = 'đang đặt'
+              t.isAvailable = false
+              t.customers = Math.max(Number(t.customers || 0), 1)
             }
           })
           // Khi trạng thái món thay đổi -> refresh bàn
@@ -319,10 +335,31 @@ export const useStaff = () => {
             if (msg?.type === 'TABLE_CLEARED') {
               t.orders = []
               t.status = 'trống'
+              t.isAvailable = true
+              t.customers = 0
+            } else if (msg?.type === 'SERVICE_REQUEST_CREATED') {
+              playNotificationSound()
+              staffStore.addNotification({
+                message: `Khách gọi phục vụ - ${t.number}`,
+                time: new Date().toLocaleTimeString(),
+                type: 'call'
+              })
             }
           })
         }
       }
+
+      await nuxt.$realtime.subscribe('/topic/staff/chat', (msg: any) => {
+        if (msg?.type !== 'STAFF_CHAT_MESSAGE') return
+        const data = msg.data || {}
+        if (data.sender !== 'CUSTOMER') return
+        playNotificationSound()
+        staffStore.addNotification({
+          message: `Tin nhắn khách - ${data.tableName || 'Bàn'}: ${data.message || ''}`,
+          time: new Date().toLocaleTimeString(),
+          type: 'chat'
+        })
+      })
 
       // Gọi ngay và thiết lập interval nhẹ để bắt kịp bàn mới được thêm/đổi ca
       await subscribeForTables()
@@ -755,6 +792,8 @@ export const useStaff = () => {
     handleCompleteTable,
     fetchOrderItemStatuses,
     setupRealtimeSubscriptions,
-    resetNotificationState
+    resetNotificationState,
+    soundEnabled,
+    toggleSound
   }
 }

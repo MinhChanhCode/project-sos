@@ -6,9 +6,11 @@ import com.sqc.sos.exception.AppException;
 import com.sqc.sos.exception.ErrorCode;
 import com.sqc.sos.model.CustomerSession;
 import com.sqc.sos.model.TableEntity;
+import com.sqc.sos.model.TableStatus;
 import com.sqc.sos.repository.ICustomerSessionRepository;
 import com.sqc.sos.repository.ITableRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ import java.util.UUID;
 public class CustomerSessionService {
     private final ICustomerSessionRepository customerSessionRepository;
     private final ITableRepository tableRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public CustomerSessionResponse upsert(CustomerSessionRequest request) {
@@ -37,6 +40,12 @@ public class CustomerSessionService {
         session.setTableId(table.getId());
         session.setCustomerName(request.getCustomerName());
         session.setIsActive(true);
+        table.setIsAvailable(false);
+        if (table.getTableStatus() == null || TableStatus.EMPTY.equals(table.getTableStatus())) {
+            table.setTableStatus(TableStatus.SERVING);
+        }
+        tableRepository.save(table);
+        eventPublisher.publishEvent(new TableStatusChangedEvent());
         return toResponse(customerSessionRepository.save(session), table);
     }
 

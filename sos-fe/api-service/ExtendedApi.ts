@@ -57,28 +57,28 @@ export const invoiceApi = {
 export const reviewApi = {
   list: () => baseApiFetch<any>("/api/v1/reviews").then(unwrap),
   create: (body: { tableId?: string; sessionId?: string; customerName?: string; rating: number; comment?: string }) =>
-    baseApiFetch<any>("/api/v1/reviews", { method: "POST", body }).then(unwrap),
+    baseApiFetch<any>("/api/v1/reviews", { method: "POST", body, skipAuth: true }).then(unwrap),
   sentimentSummary: () =>
     baseApiFetch<any>("/api/v1/reviews/sentiment-summary").then(unwrap),
 };
 
 export const customerSessionApi = {
   save: (body: { sessionId?: string; tableId: string; customerName: string }) =>
-    baseApiFetch<any>("/api/v1/customer-sessions", { method: "POST", body }).then(unwrap),
+    baseApiFetch<any>("/api/v1/customer-sessions", { method: "POST", body, skipAuth: true }).then(unwrap),
   get: (sessionId: string) =>
-    baseApiFetch<any>(`/api/v1/customer-sessions/${sessionId}`).then(unwrap),
+    baseApiFetch<any>(`/api/v1/customer-sessions/${sessionId}`, { skipAuth: true }).then(unwrap),
 };
 
 export const staffChatApi = {
   send: (body: { tableId: string; sessionId?: string; customerName?: string; sender: "CUSTOMER" | "STAFF"; message: string }) =>
-    baseApiFetch<any>("/api/v1/staff-chat", { method: "POST", body }).then(unwrap),
+    baseApiFetch<any>("/api/v1/staff-chat", { method: "POST", body, skipAuth: true }).then(unwrap),
   history: (tableId: string) =>
-    baseApiFetch<any>(`/api/v1/staff-chat/table/${tableId}`).then(unwrap),
+    baseApiFetch<any>(`/api/v1/staff-chat/table/${tableId}`, { skipAuth: true }).then(unwrap),
 };
 
 export const chatApi = {
   send: (body: { sessionId?: string; message: string }) =>
-    baseApiFetch<any>("/api/v1/chat", { method: "POST", body }).then(unwrap),
+    baseApiFetch<any>("/api/v1/chat", { method: "POST", body, skipAuth: true }).then(unwrap),
   history: (sessionId: string) =>
-    baseApiFetch<any>(`/api/v1/chat/history/${sessionId}`).then(unwrap),
+    baseApiFetch<any>(`/api/v1/chat/history/${sessionId}`, { skipAuth: true }).then(unwrap),
 };

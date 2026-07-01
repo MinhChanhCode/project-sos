@@ -244,7 +244,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useNuxtApp } from "nuxt/app";
 import type { toast as toastType } from "vue3-toastify";
 import {
@@ -491,19 +491,17 @@ onMounted(async () => {
     console.error("Error fetching table detail:", error);
   }
 
-  // Fetch again after a short delay to ensure we have the latest data
-  setTimeout(async () => {
-    await fetchServiceRequests();
-  }, 1000);
+});
 
-  // Set up interval to check for sessionId changes
-  setInterval(async () => {
-    if (props.sessionId !== previousSessionId.value) {
-      previousSessionId.value = props.sessionId;
+watch(
+  () => props.sessionId,
+  async (sessionId) => {
+    if (sessionId !== previousSessionId.value) {
+      previousSessionId.value = sessionId;
       await fetchServiceRequests();
     }
-  }, 500);
-});
+  },
+);
 
 // Expose methods
 defineExpose({

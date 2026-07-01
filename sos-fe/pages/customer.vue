@@ -128,6 +128,7 @@
           :updating-quantity="updatingQuantity"
           @update-quantity="updateQuantity"
           @update-note="updateNote"
+          @remove-item="removeFromCart"
           @confirm-order="confirmOrder"
         />
 
@@ -227,6 +228,7 @@ const {
   submitRating,
   updateQuantity,
   updateNote,
+  removeFromCart,
   saveCustomerName,
   ensureTableClearedState,
   ensureCart,

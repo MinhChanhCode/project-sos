@@ -40,6 +40,7 @@
 
 <script setup lang="ts">
 import { Chart, registerables } from "chart.js";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { formatPrice } from "~/utils/formatters";
 
 Chart.register(...registerables);

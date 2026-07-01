@@ -28,6 +28,9 @@
 <script setup lang="ts">
 import { authApi } from "~/api-service/AuthApi";
 import { useAuthStore } from "~/stores/auth";
+import { navigateTo, useRoute } from "nuxt/app";
+import { definePageMeta } from "nuxt/dist/pages/runtime";
+import { ref } from "vue";
 
 definePageMeta({ layout: false });
 
@@ -44,9 +47,9 @@ const handleLogin = async () => {
   try {
     const result = await authApi.login({ username: username.value, password: password.value });
     auth.setAuth(result.token, {
-      userId: result.userId,
-      username: result.username,
-      fullName: result.fullName,
+      userId: result.userId || "",
+      username: result.username || "",
+      fullName: result.fullName || "",
       roles: result.roles || [],
     });
     const redirect = route.query.redirect as string | undefined;

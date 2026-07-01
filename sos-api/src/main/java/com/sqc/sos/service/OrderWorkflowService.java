@@ -110,6 +110,13 @@ public class OrderWorkflowService {
         cart.setUpdatedAt(LocalDateTime.now());
         cartRepository.save(cart);
 
+        if (order.getTable() != null) {
+            TableEntity table = order.getTable();
+            table.setIsAvailable(false);
+            table.setTableStatus(TableStatus.SERVING);
+            eventPublisher.publishEvent(new TableStatusChangedEvent());
+        }
+
         // Phát sự kiện để realtime thông báo cho bếp có đơn mới
         eventPublisher.publishEvent(new OrderCreatedEvent(order.getId(), order.getTable().getId(), order.getTable().getName()));
         // Phát sự kiện realtime cập nhật ordered items cho các khách cùng bàn

@@ -75,7 +75,8 @@ export const useAdmin = () => {
 
   const fetchReviews = async () => {
     try {
-      reviews.value = await reviewApi.list();
+      const list = await reviewApi.list();
+      reviews.value = Array.isArray(list) ? list : [];
     } catch {
       reviews.value = [];
     }

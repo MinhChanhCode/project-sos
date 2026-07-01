@@ -8,7 +8,9 @@
       </template>
 
       <div v-if="isEmpty" class="text-center text-gray-500 py-8">
-        Giỏ hàng trống
+        <Icon name="lucide:shopping-cart" class="mx-auto mb-3 h-10 w-10 text-gray-300" />
+        <p class="font-medium">Giỏ hàng đang trống</p>
+        <p class="mt-1 text-sm">Hãy chọn món trước khi đặt.</p>
       </div>
 
       <div v-else class="space-y-3 max-h-96 overflow-y-auto">
@@ -54,6 +56,16 @@
                 square
               >
                 <Icon name="lucide:plus" class="w-3 h-3" />
+              </UButton>
+              <UButton
+                color="red"
+                variant="soft"
+                size="xs"
+                square
+                title="Xóa món"
+                @click="$emit('removeItem', item.id)"
+              >
+                <Icon name="lucide:trash-2" class="h-3.5 w-3.5" />
               </UButton>
             </div>
           </div>
@@ -109,7 +121,7 @@
          </div>
        </div>
 
-      <template #footer v-if="!isEmpty">
+      <template #footer>
         <div class="flex justify-between items-center mb-4">
           <span class="font-semibold">Tổng cộng:</span>
           <span class="font-bold text-lg text-orange-600">{{ formatPrice(totalPrice) }}</span>
@@ -117,7 +129,7 @@
         <div class="text-xs text-gray-500 mb-4 text-center">
           Bao gồm: {{ items.length }} món trong giỏ + {{ orderedItems?.length || 0 }} món đã đặt
         </div>
-        <UButton class="w-full" @click="$emit('confirmOrder')">
+        <UButton class="w-full" :disabled="isEmpty" @click="$emit('confirmOrder')">
           Xác nhận đặt món
         </UButton>
       </template>
@@ -158,6 +170,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   updateQuantity: [id: number, quantity: number]
   updateNote: [id: number, note: string]
+  removeItem: [id: number]
   confirmOrder: []
 }>()
 

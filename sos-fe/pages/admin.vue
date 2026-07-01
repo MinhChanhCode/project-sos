@@ -84,6 +84,8 @@ import { useAdmin } from "~/composables/useAdmin";
 import { useAuthStore } from "~/stores/auth";
 import OrderItemStatusManager from "~/components/admin/OrderItemStatusManager.vue";
 import AdminQRManager from "~/components/admin/QRManager.vue";
+import { navigateTo, useHead } from "nuxt/app";
+import { definePageMeta } from "nuxt/dist/pages/runtime";
 
 definePageMeta({
   middleware: "auth",

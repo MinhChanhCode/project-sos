@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { defineEventHandler } from "h3";
 
 const readFirstUrl = (filePath: string) => {
   if (!existsSync(filePath)) return "";

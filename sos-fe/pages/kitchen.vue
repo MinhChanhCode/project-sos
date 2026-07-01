@@ -3,6 +3,11 @@
     <div class="min-h-screen bg-gray-900 text-white p-4">
       <AppHeader title="Bếp" subtitle="Kitchen Display System" show-back-button>
         <template #actions>
+          <UBadge v-if="newOrderCount > 0" color="red" variant="solid">{{ newOrderCount }} mới</UBadge>
+          <UButton variant="ghost" size="sm" @click="toggleSound">
+            <Icon :name="soundEnabled ? 'lucide:volume-2' : 'lucide:volume-x'" class="mr-1 h-4 w-4" />
+            Chuông
+          </UButton>
           <UButton variant="outline" size="sm" @click="auth.logout(); navigateTo('/login')">Đăng xuất</UButton>
         </template>
       </AppHeader>
@@ -23,16 +28,24 @@
 <script setup lang="ts">
 import { OrderItemApi } from "~/api-service/OrderItemApi";
 import { useAuthStore } from "~/stores/auth";
+import { useNotificationSound } from "~/utils/notificationSound";
+import { navigateTo, useHead, useNuxtApp } from "nuxt/app";
+import { definePageMeta } from "nuxt/dist/pages/runtime";
+import { onMounted, ref } from "vue";
 
 definePageMeta({ middleware: "auth", roles: ["KITCHEN", "ADMIN"] });
 useHead({ title: "Bếp - Gọi Món" });
 
 const auth = useAuthStore();
 const pendingItems = ref<any[]>([]);
+const newOrderCount = ref(0);
+const seenOrderIds = new Set<string>();
+const { soundEnabled, toggleSound, playNotificationSound } = useNotificationSound();
 
 const load = async () => {
   const items = await OrderItemApi.getPendingForManagement();
   pendingItems.value = Array.isArray(items) ? items : [];
+  if (pendingItems.value.length === 0) newOrderCount.value = 0;
 };
 
 const startPreparing = async (item: any) => {
@@ -47,7 +60,17 @@ const complete = async (item: any) => {
 
 onMounted(async () => {
   await load();
-  const nuxt = useNuxtApp();
-  nuxt.$realtime?.onKitchenOrders?.(() => load());
+  const nuxt = useNuxtApp() as any;
+  nuxt.$realtime?.onKitchenOrders?.((msg: any) => {
+    if (msg?.type === "ORDER_CREATED") {
+      const key = String(msg.orderId || Date.now());
+      if (!seenOrderIds.has(key)) {
+        seenOrderIds.add(key);
+        newOrderCount.value += 1;
+        playNotificationSound();
+      }
+    }
+    load();
+  });
 });
 </script>

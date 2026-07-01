@@ -171,10 +171,15 @@
 import { ref, watch } from 'vue'
 import { OrderItemApi, type OrderItemResponse } from '@/api-service'
 
+type ManagedOrderItem = OrderItemResponse & {
+  status?: string;
+  statusDisplayName?: string;
+}
+
 // Reactive data
-const pendingItems = ref<OrderItemResponse[]>([])
-const itemsByOrder = ref<OrderItemResponse[]>([])
-const singleItem = ref<OrderItemResponse | null>(null)
+const pendingItems = ref<ManagedOrderItem[]>([])
+const itemsByOrder = ref<ManagedOrderItem[]>([])
+const singleItem = ref<ManagedOrderItem | null>(null)
 const orderId = ref('')
 const itemId = ref('')
 const updateItemId = ref('')
@@ -257,7 +262,7 @@ const updateStatus = async () => {
     updatingStatus.value = true
     error.value = ''
     
-    const response = await OrderItemApi.updateStatus(parseInt(updateItemId.value), {
+    await OrderItemApi.updateStatus(parseInt(updateItemId.value), {
       status: selectedStatus.value
     })
     
@@ -280,7 +285,7 @@ const updateStatus = async () => {
   }
 }
 
-const getStatusColor = (status: string) => {
+const getStatusColor = (status?: string) => {
   switch (status) {
     case 'PENDING': return 'yellow'
     case 'PREPARING': return 'blue'

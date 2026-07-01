@@ -1,17 +1,23 @@
 <template>
-  <div class="fixed bottom-24 right-4 z-50">
+  <div class="fixed bottom-24 right-3 z-50 sm:right-4">
     <UButton
       v-if="!open"
       icon="i-lucide-message-square"
       size="lg"
       color="blue"
-      class="rounded-full shadow-lg"
+      class="relative rounded-full bg-orange-500 shadow-lg shadow-orange-500/25 hover:bg-orange-600"
       :disabled="!tableId"
       @click="open = true"
     >
       Nhắn nhân viên
+      <span
+        v-if="unreadStaffReplies > 0"
+        class="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white ring-2 ring-white"
+      >
+        {{ unreadStaffReplies }}
+      </span>
     </UButton>
-    <UCard v-else class="w-80 sm:w-96 shadow-xl">
+    <UCard v-else class="w-[calc(100vw-1.5rem)] max-w-sm shadow-xl sm:w-96">
       <template #header>
         <div class="flex items-center justify-between">
           <span class="font-semibold">Nhắn nhân viên · {{ tableName }}</span>
@@ -52,6 +58,7 @@
 import { nextTick, onMounted, ref, watch } from "vue";
 import { useNuxtApp } from "nuxt/app";
 import { staffChatApi } from "~/api-service/ExtendedApi";
+import { useNotificationSound } from "~/utils/notificationSound";
 
 const props = defineProps<{
   tableId: string
@@ -66,6 +73,8 @@ const sending = ref(false);
 const messages = ref<any[]>([]);
 const messagesRef = ref<HTMLElement | null>(null);
 const nuxt = useNuxtApp() as any;
+const unreadStaffReplies = ref(0);
+const { playNotificationSound } = useNotificationSound();
 
 const scrollBottom = () => nextTick(() => messagesRef.value?.scrollTo({ top: 99999, behavior: "smooth" }));
 const formatTime = (value?: string) => (value ? new Date(value).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "");
@@ -109,10 +118,18 @@ const setupRealtime = () => {
     const message = payload?.data;
     if (payload?.type === "STAFF_CHAT_MESSAGE" && message && !messages.value.some((m) => m.id === message.id)) {
       messages.value.push(message);
+      if (message.sender === "STAFF" && !open.value) {
+        unreadStaffReplies.value += 1;
+        playNotificationSound();
+      }
       scrollBottom();
     }
   });
 };
+
+watch(open, (value) => {
+  if (value) unreadStaffReplies.value = 0;
+});
 
 watch(() => props.tableId, () => {
   loadHistory();

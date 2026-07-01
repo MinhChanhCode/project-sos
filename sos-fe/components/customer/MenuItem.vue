@@ -26,9 +26,6 @@
           Sale
         </span>
       </div>
-      <button class="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-rose-500 shadow-sm backdrop-blur transition hover:bg-white" type="button">
-        <Icon name="lucide:heart" class="h-4 w-4" />
-      </button>
     </div>
 
     <div class="p-3">

@@ -3,11 +3,16 @@ import { defineStore } from "pinia"
 export interface Table {
   id: string
   number: string
-  status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "đã phục vụ" | "sẵn sàng" | "đang chế biến"
+  status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "đã phục vụ" | "sẵn sàng" | "đang chế biến" | "có khách"
   customers: number
   orders: Order[]
   assignedStaff: string
   totalAmount: number
+  posX?: number
+  posY?: number
+  tableStatus?: string
+  isAvailable?: boolean
+  activeOrderId?: number | string | null
 }
 
 export interface Order {
@@ -42,7 +47,7 @@ export interface Notification {
   id: string
   message: string
   time: string  
-  type: "kitchen" | "call" | "order"
+  type: "kitchen" | "call" | "order" | "chat"
   read?: boolean
 }
 

@@ -166,7 +166,8 @@ export const useCustomer = () => {
 
   const fetchCategories = async () => {
     try {
-      const rawCategories: any[] = await categoryApi.list();
+      const list = await categoryApi.list();
+      const rawCategories = Array.isArray(list) ? list : [];
       const activeCategories = rawCategories.filter((category) => category?.isActive !== false);
       const mappedCategories = categoryUi
         .map((uiCategory) => {
@@ -538,6 +539,11 @@ export const useCustomer = () => {
       return;
     }
     await ensureCart();
+    if (cartStore.isEmpty) {
+      const toast = useNuxtApp().$toast as typeof toastType;
+      toast.info("Giỏ hàng đang trống, vui lòng chọn món trước khi đặt");
+      return;
+    }
     const orderId = await CartApi.confirmOrder(sessionId.value);
     const nuxt = useNuxtApp() as any;
     const toast = useNuxtApp().$toast as typeof toastType;
@@ -763,6 +769,10 @@ export const useCustomer = () => {
     await fetchCartFromServer()
   };
 
+  const removeFromCart = async (id: number) => {
+    await updateQuantity(id, 0);
+  };
+
   // Function để refresh ordered items từ server (có thể gọi từ bên ngoài)
   const refreshOrderedItems = async () => {
     await syncOrderedItemsFromServer();
@@ -816,6 +826,7 @@ export const useCustomer = () => {
     submitRating,
     updateQuantity,
     updateNote,
+    removeFromCart,
     fetchMenuItems,
     ensureTableClearedState,
     // expose để khi mở modal có thể đồng bộ cart từ server

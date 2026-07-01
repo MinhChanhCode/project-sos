@@ -8,6 +8,10 @@
         show-back-button
       >
         <template #actions>
+          <UButton variant="ghost" size="sm" @click="toggleSound">
+            <Icon :name="soundEnabled ? 'lucide:volume-2' : 'lucide:volume-x'" class="mr-1 h-4 w-4" />
+            Chuông
+          </UButton>
           <UButton variant="outline" size="sm" @click="auth.logout(); navigateTo('/login')">Đăng xuất</UButton>
           <UButton 
             @click="showNotifications = true" 
@@ -78,7 +82,8 @@
 <script setup lang="ts">
 import { useStaff } from '~/composables/useStaff'
 import { useAuthStore } from '~/stores/auth'
-import { useHead } from 'nuxt/app'
+import { navigateTo, useHead } from 'nuxt/app'
+import { definePageMeta } from 'nuxt/dist/pages/runtime'
 import { onMounted, watch } from 'vue'
 import StaffOrderItemStatusManager from '@/components/staff/OrderItemStatusManager.vue'
 
@@ -108,7 +113,9 @@ const {
   handleChatCustomer,
   handleCompleteTable,
   ensureTablesLoaded,
-  setupRealtimeSubscriptions
+  setupRealtimeSubscriptions,
+  soundEnabled,
+  toggleSound
 } = useStaff()
 
 onMounted(() => { 
@@ -119,8 +126,9 @@ onMounted(() => {
 watch(
   () => staffStore.tables,
   (newTables) => {
-    if (selectedTable.value) {
-      const updated = newTables.find(t => t.id === selectedTable.value.id)
+    const current = selectedTable.value
+    if (current) {
+      const updated = newTables.find(t => t.id === current.id)
       if (updated) {
         selectedTable.value = updated
       }

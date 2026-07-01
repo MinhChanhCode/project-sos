@@ -149,7 +149,7 @@ interface Order {
 interface Table {
   id: string
   number: string
-  status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "đã phục vụ" | "sẵn sàng" | "đang chế biến"
+  status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "đã phục vụ" | "sẵn sàng" | "đang chế biến" | "có khách"
   customers: number
   assignedStaff: string
   totalAmount: number

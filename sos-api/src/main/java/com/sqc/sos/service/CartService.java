@@ -12,6 +12,7 @@ import com.sqc.sos.model.Cart;
 import com.sqc.sos.model.CartItem;
 import com.sqc.sos.model.MenuItem;
 import com.sqc.sos.model.TableEntity;
+import com.sqc.sos.model.TableStatus;
 import com.sqc.sos.repository.ICartItemRepository;
 import com.sqc.sos.repository.ICartRepository;
 import com.sqc.sos.repository.IMenuItemRepository;
@@ -54,6 +55,7 @@ public class CartService implements ICartService {
         if (request.getSessionId() != null && !request.getSessionId().isBlank()) {
             Optional<Cart> existingBySession = cartRepository.findBySessionIdAndIsActiveTrue(request.getSessionId());
             if (existingBySession.isPresent()) {
+                markTableActive(existingBySession.get().getTable());
                 return cartMapper.toResponse(existingBySession.get());
             }
         }
@@ -62,6 +64,7 @@ public class CartService implements ICartService {
         if (request.getSessionId() == null || request.getSessionId().isBlank()) {
             Optional<Cart> existingByTable = findReusableActiveCartForTable(table.getId(), true);
             if (existingByTable.isPresent()) {
+                markTableActive(existingByTable.get().getTable());
                 return cartMapper.toResponse(existingByTable.get());
             }
         }
@@ -80,6 +83,7 @@ public class CartService implements ICartService {
                 .build();
 
         Cart savedCart = cartRepository.save(cart);
+        markTableActive(table);
         return cartMapper.toResponse(savedCart);
     }
 
@@ -92,6 +96,7 @@ public class CartService implements ICartService {
         // Reuse active cart if exists
         Optional<Cart> existingByTable = findReusableActiveCartForTable(tableId, true);
         if (existingByTable.isPresent()) {
+            markTableActive(existingByTable.get().getTable());
             return cartMapper.toResponse(existingByTable.get());
         }
 
@@ -104,6 +109,7 @@ public class CartService implements ICartService {
                 .createdAt(LocalDateTime.now())
                 .build();
         Cart saved = cartRepository.save(cart);
+        markTableActive(table);
         return cartMapper.toResponse(saved);
     }
 
@@ -150,6 +156,7 @@ public class CartService implements ICartService {
             }
             cartItemRepository.save(item);
             eventPublisher.publishEvent(new CartUpdatedEvent(cart.getTable().getId()));
+            markTableActive(cart.getTable());
         } else {
             // Add new item
             CartItem newItem = CartItem.builder()
@@ -162,6 +169,7 @@ public class CartService implements ICartService {
                     .build();
             cartItemRepository.save(newItem);
             eventPublisher.publishEvent(new CartUpdatedEvent(cart.getTable().getId()));
+            markTableActive(cart.getTable());
         }
 
         // Update cart timestamp
@@ -277,5 +285,15 @@ public class CartService implements ICartService {
             }
         }
         return Optional.of(newest);
+    }
+
+    private void markTableActive(TableEntity table) {
+        if (table == null) return;
+        table.setIsAvailable(false);
+        if (table.getTableStatus() == null || TableStatus.EMPTY.equals(table.getTableStatus())) {
+            table.setTableStatus(TableStatus.SERVING);
+        }
+        tableRepository.save(table);
+        eventPublisher.publishEvent(new TableStatusChangedEvent());
     }
 } 
