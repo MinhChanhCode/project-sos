@@ -58,6 +58,7 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/categories/**").hasAnyRole("ADMIN", "MANAGER")
                     .requestMatchers(HttpMethod.POST, "/api/v1/tables/**").hasAnyRole("ADMIN", "MANAGER")
                     .requestMatchers(HttpMethod.PUT, "/api/v1/tables/**").hasAnyRole("ADMIN", "MANAGER")
+                    .requestMatchers(HttpMethod.PATCH, "/api/v1/tables/*/clear").hasAnyRole("ADMIN", "MANAGER", "STAFF", "KITCHEN")
                     .requestMatchers(HttpMethod.PATCH, "/api/v1/tables/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
                     .requestMatchers(HttpMethod.DELETE, "/api/v1/tables/**").hasAnyRole("ADMIN", "MANAGER")
                     .requestMatchers("/api/v1/users/**").hasRole("ADMIN")

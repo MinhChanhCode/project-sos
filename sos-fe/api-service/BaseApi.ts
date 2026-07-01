@@ -22,7 +22,14 @@ export const baseApi = async <T>(url: string, options: any = {}) => {
   });
 
   if (error.value) {
-    throw new Error(error.value.message || "Fetch error");
+    const statusCode = (error.value as any)?.statusCode || (error.value as any)?.status;
+    let message = error.value.message || "Fetch error";
+    if (statusCode === 401) {
+      message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+    } else if (statusCode === 403) {
+      message = "Bạn không có quyền thực hiện thao tác này. Hãy dùng tài khoản nhân viên, quản lý hoặc quản trị.";
+    }
+    throw new Error(message);
   }
 
   return data.value as T;

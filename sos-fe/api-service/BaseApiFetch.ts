@@ -24,7 +24,13 @@ export const baseApiFetch = async <T>(url: string, options: any = {}) => {
     });
     return data as T;
   } catch (err: any) {
-    const message = err?.data?.message || err?.message || "Fetch error";
+    const statusCode = err?.statusCode || err?.response?.status;
+    let message = err?.data?.message || err?.message || "Fetch error";
+    if (statusCode === 401) {
+      message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+    } else if (statusCode === 403) {
+      message = "Bạn không có quyền thực hiện thao tác này. Hãy dùng tài khoản nhân viên, quản lý hoặc quản trị.";
+    }
     throw new Error(message);
   }
 };

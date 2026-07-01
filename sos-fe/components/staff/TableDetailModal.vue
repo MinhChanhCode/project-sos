@@ -123,6 +123,7 @@ import { invoiceApi } from '@/api-service/ExtendedApi'
 import type { toast as toastType } from 'vue3-toastify'
 import { getStatusColor, getStatusText, formatPrice, deriveOrderItemStatus } from '~/utils/formatters'
 import { useStaffStore } from '@/stores/staff'
+import { useAuthStore } from '@/stores/auth'
 
 interface OrderItem {
   id: string
@@ -171,6 +172,7 @@ const isOpen = computed({
 
 // Access latest table state from store to avoid stale prop references
 const staffStore = useStaffStore()
+const authStore = useAuthStore()
 const sourceTable = computed(() => {
   if (!props.table?.id) return props.table
   return staffStore.getTableById(String(props.table.id)) || props.table
@@ -453,6 +455,11 @@ const canClearTable = computed(() => {
   })
 })
 
+const canClearByRole = computed(() => {
+  authStore.loadFromStorage()
+  return authStore.hasAnyRole(['ADMIN', 'MANAGER', 'STAFF', 'KITCHEN'])
+})
+
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
   'update-item-status': [tableId: string, orderId: string, itemId: string, newStatus: string]
@@ -623,6 +630,12 @@ const handlePayment = async () => {
 
 const handleClearTable = async () => {
   if (!props.table) return
+
+  if (!canClearByRole.value) {
+    const toast = useNuxtApp().$toast as typeof toastType
+    toast.error('Bạn không có quyền dọn bàn. Hãy đăng nhập bằng tài khoản nhân viên, quản lý hoặc quản trị.')
+    return
+  }
   
   // Kiểm tra xem có món nào chưa được phục vụ không (chỉ SERVED mới được coi là đã phục vụ)
   const hasUnservedItems = groupedItems.value.some(group => {
