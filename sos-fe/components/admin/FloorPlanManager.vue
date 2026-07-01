@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-4">
     <div class="relative flex items-center justify-center">
-      <UButton size="lg" color="green" :loading="syncing" @click="syncDefaultTables">
+      <UButton size="lg" color="green" :loading="syncing" @click="addTable">
         <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
         Thêm bàn
       </UButton>
@@ -42,7 +42,6 @@ import { TableApi } from "~/api-service/TableApi";
 import { getTableDisplayStatus } from "~/utils/tableStatus";
 import {
   DEFAULT_TABLE_AREA_ID,
-  MAX_FLOOR_PLAN_TABLES,
   STANDARD_TABLE_NUMBERS,
   getDefaultTableName,
   getDefaultTablePosition,
@@ -65,13 +64,11 @@ const visibleTables = computed(() =>
   })),
 );
 
-const hasReachedTableLimit = computed(() => visibleTables.value.length >= MAX_FLOOR_PLAN_TABLES);
-
 const load = async () => {
   tables.value = await TableApi.list();
 };
 
-const syncDefaultTables = async () => {
+const syncDefaultTables = async (showToast = false) => {
   syncing.value = true;
   try {
     const list = await TableApi.list();
@@ -105,22 +102,39 @@ const syncDefaultTables = async () => {
       }
     }
 
-    const canonicalIds = new Set(
-      Array.from(standardTables.values()).map((table: any) => String(table.id)),
-    );
-    const staleTables = (Array.isArray(list) ? list : []).filter((table: any) => {
-      const tableNumber = getStandardTableNumber(table);
-      return !tableNumber || !canonicalIds.has(String(table.id));
-    });
-
-    await Promise.allSettled(
-      staleTables.map((table: any) => TableApi.delete(String(table.id))),
-    );
-
     await load();
-    (useNuxtApp() as any).$toast?.success?.("Đã đồng bộ 20 bàn mặc định");
+    if (showToast) (useNuxtApp() as any).$toast?.success?.("Đã đồng bộ 20 bàn mặc định");
   } catch (e: any) {
     (useNuxtApp() as any).$toast?.error?.(e?.message || "Không thể đồng bộ bàn");
+  } finally {
+    syncing.value = false;
+  }
+};
+
+const addTable = async () => {
+  syncing.value = true;
+  try {
+    const list = await TableApi.list();
+    const usedNumbers = new Set(
+      (Array.isArray(list) ? list : [])
+        .map((table: any) => getStandardTableNumber(table))
+        .filter(Boolean) as number[],
+    );
+    let tableNumber = 1;
+    while (usedNumbers.has(tableNumber)) tableNumber += 1;
+    const position = getDefaultTablePosition(tableNumber);
+    await TableApi.create({
+      name: getDefaultTableName(tableNumber),
+      capacity: 4,
+      areaId: DEFAULT_TABLE_AREA_ID,
+      posX: position.posX,
+      posY: position.posY,
+      tableStatus: "EMPTY",
+    });
+    await load();
+    (useNuxtApp() as any).$toast?.success?.(`Đã thêm bàn ${tableNumber}`);
+  } catch (e: any) {
+    (useNuxtApp() as any).$toast?.error?.(e?.message || "Không thể thêm bàn");
   } finally {
     syncing.value = false;
   }
@@ -166,7 +180,7 @@ const savePositions = async () => {
 
 onMounted(async () => {
   await load();
-  if (!hasReachedTableLimit.value) {
+  if (visibleTables.value.length < STANDARD_TABLE_NUMBERS.length) {
     await syncDefaultTables();
   }
   const nuxt = useNuxtApp() as any;

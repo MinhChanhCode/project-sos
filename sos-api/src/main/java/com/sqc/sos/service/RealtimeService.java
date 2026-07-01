@@ -166,6 +166,26 @@ public class RealtimeService {
     }
 
     @EventListener
+    public void onMenuItemChanged(MenuItemChangedEvent event) {
+        if (event.getItem() == null) return;
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", "MENU_ITEM_CHANGED");
+        payload.put("action", event.getAction());
+        payload.put("item", event.getItem());
+        messagingTemplate.convertAndSend("/topic/menu-items", payload);
+        log.info("Sent menu item realtime update: {}", payload);
+    }
+
+    @EventListener
+    public void onReviewCreated(ReviewCreatedEvent event) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("type", "REVIEW_CREATED");
+        payload.put("review", event.getReview());
+        messagingTemplate.convertAndSend("/topic/reviews", payload);
+        log.info("Sent review realtime update: {}", payload);
+    }
+
+    @EventListener
     public void onTableCleared(TableQueryService.TableClearedEvent event) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("tableId", event.getTableId());
@@ -180,5 +200,3 @@ public class RealtimeService {
         log.info("Sent payment event: {}", payload);
     }
 }
-
-

@@ -4,6 +4,15 @@
       <template #header>
         <div class="flex justify-between items-center">
           <h2 class="text-lg font-semibold">Giỏ hàng - Bàn {{ tableNumber }}</h2>
+          <UButton
+            variant="ghost"
+            size="xs"
+            square
+            title="Đóng giỏ hàng"
+            @click="emit('update:modelValue', false)"
+          >
+            <Icon name="lucide:x" class="h-4 w-4" />
+          </UButton>
         </div>
       </template>
 

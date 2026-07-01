@@ -52,6 +52,8 @@ export const invoiceApi = {
     baseApiFetch<any>("/api/v1/invoices/payment/confirm", { method: "POST", body }).then(unwrap),
   getByOrder: (orderId: number) =>
     baseApiFetch<any>(`/api/v1/invoices/order/${orderId}`).then(unwrap),
+  createForSession: (sessionId: string) =>
+    baseApiFetch<any>(`/api/v1/invoices/public/session/${encodeURIComponent(sessionId)}`, { method: "POST", skipAuth: true }).then(unwrap),
 };
 
 export const reviewApi = {

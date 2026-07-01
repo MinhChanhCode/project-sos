@@ -366,6 +366,20 @@ export const useStaff = () => {
         })
       })
 
+      await nuxt.$realtime.subscribe('/topic/payment', (msg: any) => {
+        if (msg?.event === 'PAYMENT_REQUESTED') {
+          playNotificationSound()
+          staffStore.addNotification({
+            message: `Yêu cầu thanh toán - ${msg.tableName || 'Bàn'} (${Number(msg.amount || 0).toLocaleString('vi-VN')}đ)`,
+            time: new Date().toLocaleTimeString(),
+            type: 'call'
+          })
+          if (msg.tableId) refreshTable(String(msg.tableId))
+        } else if (msg?.event === 'PAYMENT_COMPLETED' && msg.tableId) {
+          refreshTable(String(msg.tableId))
+        }
+      })
+
       // Gọi ngay và thiết lập interval nhẹ để bắt kịp bàn mới được thêm/đổi ca
       await subscribeForTables()
       setInterval(subscribeForTables, 10000)

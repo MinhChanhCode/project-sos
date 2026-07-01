@@ -13,6 +13,9 @@
               <div class="text-sm text-gray-600">
                 {{ review.tableName || (review.tableId ? `Bàn ${review.tableId}` : 'Chưa rõ bàn') }} · {{ formatDate(review.createdAt) }}
               </div>
+              <div class="mt-1 text-xs text-gray-500">
+                Session/Order: {{ review.sessionId || 'Chưa có' }}
+              </div>
             </div>
             <div class="flex items-center space-x-1">
               <Icon
@@ -24,9 +27,14 @@
             </div>
           </div>
           <p class="text-gray-700 dark:text-gray-300 mb-2">{{ review.comment || 'Không có ghi chú' }}</p>
-          <UBadge v-if="review.sentiment" :color="sentimentColor(review.sentiment)" variant="soft" size="xs">
-            AI: {{ review.sentiment }}
-          </UBadge>
+          <div class="flex flex-wrap gap-2">
+            <UBadge v-if="review.sentiment" :color="sentimentColor(review.sentiment)" variant="soft" size="xs">
+              AI: {{ review.sentiment }}
+            </UBadge>
+            <UBadge v-if="review.sentimentConfidence" color="gray" variant="soft" size="xs">
+              Tin cậy: {{ Math.round(Number(review.sentimentConfidence) * 100) }}%
+            </UBadge>
+          </div>
         </div>
       </UCard>
       <p v-if="!reviews?.length" class="text-center text-gray-400 py-8">Chưa có đánh giá</p>
@@ -43,12 +51,14 @@ interface Review {
   rating?: number
   comment?: string
   sentiment?: string
+  sentimentConfidence?: number | string
+  sessionId?: string
   createdAt?: string
 }
 
 defineProps<{ reviews: Review[] }>();
 
-const formatDate = (d?: string) => (d ? new Date(d).toLocaleDateString("vi-VN") : "");
+const formatDate = (d?: string) => (d ? new Date(d).toLocaleString("vi-VN") : "");
 const sentimentColor = (s: string) => {
   if (s === "POSITIVE") return "green";
   if (s === "NEGATIVE") return "red";

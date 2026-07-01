@@ -113,11 +113,91 @@
       </template>
     </UCard>
   </UModal>
+
+  <UModal v-model="showPaymentBill" :ui="{ width: 'max-w-2xl' }">
+    <UCard v-if="currentInvoice">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-semibold">{{ currentInvoice.restaurantName || "Gọi Món Bistro" }}</h2>
+            <p class="text-sm text-gray-500">{{ currentInvoice.invoiceCode || ("INV-" + currentInvoice.orderId) }}</p>
+          </div>
+          <UBadge :color="currentInvoice.status === 'PAID' ? 'green' : 'yellow'" variant="soft">
+            {{ currentInvoice.status === 'PAID' ? 'Đã thanh toán' : 'Chờ thanh toán' }}
+          </UBadge>
+        </div>
+      </template>
+
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <div class="text-gray-500">Bàn</div>
+            <div class="font-medium">{{ currentInvoice.tableName || table?.number }}</div>
+          </div>
+          <div>
+            <div class="text-gray-500">Khách hàng</div>
+            <div class="font-medium">{{ currentInvoice.customerName || "Khách tại bàn" }}</div>
+          </div>
+          <div>
+            <div class="text-gray-500">Order</div>
+            <div class="font-medium">#{{ currentInvoice.orderId }}</div>
+          </div>
+          <div>
+            <div class="text-gray-500">Thời gian</div>
+            <div class="font-medium">{{ formatInvoiceDate(currentInvoice.createdAt) }}</div>
+          </div>
+        </div>
+
+        <div class="rounded-lg border">
+          <div class="grid grid-cols-[1fr_56px_96px_104px] gap-2 border-b px-3 py-2 text-xs font-semibold text-gray-500">
+            <span>Món</span>
+            <span>SL</span>
+            <span>Đơn giá</span>
+            <span>Thành tiền</span>
+          </div>
+          <div
+            v-for="item in currentInvoice.items || []"
+            :key="item.orderItemId"
+            class="grid grid-cols-[1fr_56px_96px_104px] gap-2 px-3 py-2 text-sm"
+          >
+            <span>{{ item.menuItemName }}</span>
+            <span>{{ item.quantity }}</span>
+            <span>{{ formatPrice(Number(item.unitPrice || 0)) }}</span>
+            <span>{{ formatPrice(Number(item.lineTotal || 0)) }}</span>
+          </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-[1fr_180px]">
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span>Tạm tính</span><b>{{ formatPrice(Number(currentInvoice.subtotal || 0)) }}</b></div>
+            <div class="flex justify-between"><span>Giảm giá</span><b>{{ formatPrice(Number(currentInvoice.discount || 0)) }}</b></div>
+            <div class="flex justify-between"><span>Phí dịch vụ</span><b>{{ formatPrice(Number(currentInvoice.serviceFee || 0)) }}</b></div>
+            <div class="flex justify-between"><span>Thuế</span><b>{{ formatPrice(Number(currentInvoice.tax || 0)) }}</b></div>
+            <div class="flex justify-between border-t pt-2 text-base"><span>Tổng tiền</span><b>{{ formatPrice(Number(currentInvoice.total || 0)) }}</b></div>
+          </div>
+          <div class="flex flex-col items-center rounded-lg border p-3">
+            <qrcode-vue :value="currentInvoice.paymentQrPayload || ''" :size="144" level="M" render-as="svg" />
+            <div class="mt-2 text-center text-xs text-gray-500">QR thanh toán demo</div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex gap-2">
+          <UButton variant="ghost" class="flex-1" @click="showPaymentBill = false">Đóng</UButton>
+          <UButton color="green" class="flex-1" :loading="paying" @click="confirmPayment">
+            Xác nhận đã thanh toán
+          </UButton>
+        </div>
+      </template>
+    </UCard>
+  </UModal>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 import { useNuxtApp } from 'nuxt/app'
+import QrcodeVue from 'qrcode.vue'
 import { TableApi, OrderItemApi } from '@/api-service'
 import { invoiceApi } from '@/api-service/ExtendedApi'
 import type { toast as toastType } from 'vue3-toastify'
@@ -182,6 +262,8 @@ const sourceTable = computed(() => {
 const localOrders = ref<Order[]>([])
 const paying = ref(false)
 const activeOrderId = ref<number | null>(null)
+const showPaymentBill = ref(false)
+const currentInvoice = ref<any | null>(null)
 
 // Load latest table detail and split quantities into per-status items
 const loadTableOrders = async () => {
@@ -604,6 +686,15 @@ const formatOrderTime = (time: string) => {
   }
 }
 
+const formatInvoiceDate = (time?: string) => {
+  if (!time) return ''
+  try {
+    return new Date(time).toLocaleString('vi-VN')
+  } catch {
+    return ''
+  }
+}
+
 const handlePayment = async () => {
   if (!activeOrderId.value) {
     const toast = useNuxtApp().$toast as typeof toastType
@@ -612,11 +703,24 @@ const handlePayment = async () => {
   }
   paying.value = true
   try {
-    await invoiceApi.create(activeOrderId.value)
-    await invoiceApi.confirmPayment({
+    currentInvoice.value = await invoiceApi.create(activeOrderId.value)
+    showPaymentBill.value = true
+  } catch (e: any) {
+    const toast = useNuxtApp().$toast as typeof toastType
+    toast.error(e.message || 'Không thể tạo hóa đơn')
+  } finally {
+    paying.value = false
+  }
+}
+
+const confirmPayment = async () => {
+  if (!activeOrderId.value || !currentInvoice.value) return
+  paying.value = true
+  try {
+    currentInvoice.value = await invoiceApi.confirmPayment({
       orderId: activeOrderId.value,
-      method: 'CASH',
-      amount: props.table?.totalAmount || 0,
+      method: 'DEMO_QR',
+      amount: Number(currentInvoice.value.total || props.table?.totalAmount || 0),
     })
     const toast = useNuxtApp().$toast as typeof toastType
     toast.success('Đã xác nhận thanh toán')

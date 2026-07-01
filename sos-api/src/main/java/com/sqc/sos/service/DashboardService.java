@@ -22,6 +22,7 @@ public class DashboardService {
     private final IOrderRepository orderRepository;
     private final IOrderItemRepository orderItemRepository;
     private final ITableRepository tableRepository;
+    private final IReviewRepository reviewRepository;
     private final ReviewService reviewService;
 
     public DashboardResponse getDashboard() {
@@ -62,6 +63,7 @@ public class DashboardService {
         Map<String, Long> sentimentSummary = reviewService.sentimentSummary();
         List<DashboardResponse.TopItem> topItems = buildTopItems(startOfMonth);
         List<DashboardResponse.RevenuePoint> revenueByDay = buildRevenueByDay(paidInvoices, 7);
+        BigDecimal averageRating = buildAverageRating();
 
         return DashboardResponse.builder()
                 .todayRevenue(todayRevenue)
@@ -70,10 +72,22 @@ public class DashboardService {
                 .monthOrders(monthOrders)
                 .activeTables(activeTables)
                 .pendingOrders(pendingOrders)
+                .averageRating(averageRating)
                 .sentimentSummary(sentimentSummary)
                 .topItems(topItems)
                 .revenueByDay(revenueByDay)
                 .build();
+    }
+
+    private BigDecimal buildAverageRating() {
+        List<com.sqc.sos.model.Review> reviews = reviewRepository.findAll().stream()
+                .filter(review -> review.getRating() != null)
+                .toList();
+        if (reviews.isEmpty()) {
+            return new BigDecimal("5.0");
+        }
+        double average = reviews.stream().mapToInt(com.sqc.sos.model.Review::getRating).average().orElse(5.0);
+        return BigDecimal.valueOf(average).setScale(1, java.math.RoundingMode.HALF_UP);
     }
 
     private List<DashboardResponse.TopItem> buildTopItems(LocalDateTime from) {

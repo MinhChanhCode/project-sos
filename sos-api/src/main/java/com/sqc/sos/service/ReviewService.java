@@ -13,6 +13,7 @@ import com.sqc.sos.repository.IReviewRepository;
 import com.sqc.sos.repository.ISentimentResultRepository;
 import com.sqc.sos.repository.ITableRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class ReviewService {
     private final ISentimentResultRepository sentimentResultRepository;
     private final ICustomerSessionRepository customerSessionRepository;
     private final ITableRepository tableRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${ai.service.url:}")
     private String aiServiceUrl;
@@ -58,7 +60,9 @@ public class ReviewService {
                 .build();
         sentimentResultRepository.save(sentiment);
 
-        return toResponse(review, sentiment);
+        ReviewResponse response = toResponse(review, sentiment);
+        eventPublisher.publishEvent(new ReviewCreatedEvent(response));
+        return response;
     }
 
     public Map<String, Long> sentimentSummary() {

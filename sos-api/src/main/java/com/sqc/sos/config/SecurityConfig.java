@@ -44,6 +44,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/customer-sessions/**").permitAll()
                     .requestMatchers("/api/v1/staff-chat/**").permitAll()
                     .requestMatchers("/api/v1/qr-codes/token/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/invoices/public/session/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/users/me").authenticated()
                     // Admin / Manager
                     .requestMatchers("/api/v1/dashboard/**").hasAnyRole("ADMIN", "MANAGER")

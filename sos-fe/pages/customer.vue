@@ -115,6 +115,15 @@
             <Icon name="lucide:shopping-cart" class="mr-2 h-5 w-5" />
             Xem giỏ hàng · {{ cartStore.totalItems }} món
           </button>
+          <button
+            class="flex h-11 w-11 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800"
+            type="button"
+            title="Yêu cầu thanh toán"
+            :disabled="requestingPayment || !cartStore.orderedItems.length"
+            @click="requestPayment"
+          >
+            <Icon name="lucide:receipt-text" class="h-5 w-5" />
+          </button>
         </div>
       </div>
 
@@ -151,6 +160,63 @@
               Bắt đầu đặt món
             </UButton>
           </form>
+        </UCard>
+      </UModal>
+
+      <UModal v-model="showPaymentBill">
+        <UCard v-if="currentInvoice">
+          <template #header>
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-semibold">{{ currentInvoice.restaurantName || "Gọi Món Bistro" }}</h2>
+                <p class="text-sm text-gray-500">{{ currentInvoice.invoiceCode }}</p>
+              </div>
+              <UBadge :color="currentInvoice.status === 'PAID' ? 'green' : 'yellow'" variant="soft">
+                {{ currentInvoice.status === 'PAID' ? 'Đã thanh toán' : 'Chờ thanh toán' }}
+              </UBadge>
+            </div>
+          </template>
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <div class="text-gray-500">Bàn</div>
+                <div class="font-semibold">{{ currentInvoice.tableName || tableName }}</div>
+              </div>
+              <div>
+                <div class="text-gray-500">Khách hàng</div>
+                <div class="font-semibold">{{ currentInvoice.customerName || customerName || "Khách hàng" }}</div>
+              </div>
+            </div>
+            <div class="max-h-52 overflow-y-auto rounded-lg border">
+              <div
+                v-for="item in currentInvoice.items || []"
+                :key="item.orderItemId"
+                class="flex items-center justify-between border-b px-3 py-2 text-sm last:border-b-0"
+              >
+                <div>
+                  <div class="font-medium">{{ item.menuItemName }}</div>
+                  <div class="text-xs text-gray-500">x{{ item.quantity }} · {{ formatMoney(Number(item.unitPrice || 0)) }}</div>
+                </div>
+                <div class="font-semibold">{{ formatMoney(Number(item.lineTotal || 0)) }}</div>
+              </div>
+            </div>
+            <div class="flex items-start justify-between gap-4">
+              <div class="space-y-1 text-sm">
+                <div>Tạm tính: <b>{{ formatMoney(Number(currentInvoice.subtotal || 0)) }}</b></div>
+                <div>Thuế/phí: <b>{{ formatMoney(Number(currentInvoice.tax || 0) + Number(currentInvoice.serviceFee || 0)) }}</b></div>
+                <div class="text-base">Tổng: <b class="text-orange-600">{{ formatMoney(Number(currentInvoice.total || 0)) }}</b></div>
+              </div>
+              <div class="rounded-lg border p-2">
+                <qrcode-vue :value="currentInvoice.paymentQrPayload || ''" :size="128" level="M" render-as="svg" />
+              </div>
+            </div>
+            <p class="text-xs text-gray-500">
+              {{ currentInvoice.status === 'PAID' ? 'Thanh toán đã được nhân viên xác nhận.' : 'Đây là QR demo. Nhân viên sẽ xác nhận thanh toán trên hệ thống.' }}
+            </p>
+          </div>
+          <template #footer>
+            <UButton class="w-full" @click="showPaymentBill = false">Đóng</UButton>
+          </template>
         </UCard>
       </UModal>
 
@@ -199,6 +265,7 @@
 import { useCustomer } from "~/composables/useCustomer";
 import { useHead, useNuxtApp } from "nuxt/app";
 import { onMounted, watch, computed } from "vue";
+import QrcodeVue from "qrcode.vue";
 import CustomerSuggestionsSection from "~/components/customer/SuggestionsSection.vue";
 
 // Meta
@@ -210,6 +277,7 @@ useHead({
 const {
   cartStore,
   showCart,
+  showPaymentBill,
   showRatingDialog,
   showCustomerNameDialog,
   savingCustomerName,
@@ -223,10 +291,13 @@ const {
   // @ts-ignore
   tableId,
   sessionId, // Add sessionId from useCustomer
+  currentInvoice,
+  requestingPayment,
   categories,
   filteredItems,
   addToCart,
   confirmOrder,
+  requestPayment,
   submitRating,
   updateQuantity,
   updateNote,
@@ -241,8 +312,10 @@ const {
 // Table name for service request
 const tableName = computed(() => `Bàn ${tableNumber.value}`);
 const floatingActionsHidden = computed(
-  () => showCustomerNameDialog.value || showCart.value || showRatingDialog.value
+  () => showCustomerNameDialog.value || showCart.value || showRatingDialog.value || showPaymentBill.value
 );
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value || 0);
 
 // Listen realtime: khi bàn được dọn -> xóa cache local của session hiện tại
 onMounted(() => {

@@ -53,6 +53,11 @@ export const menuApi = {
       query: { page, size },
     }),
 
+  getActivePaged: (page = 0, size = 12) =>
+    baseApi<any>(`${baseUrl}/active`, {
+      query: { page, size },
+    }),
+
   getById: (id: number | string) => baseApi<MenuItem>(`${baseUrl}/${id}`),
 
   getByCategoryPaged: (categoryId: number | string, page = 0, size = 12) =>
@@ -75,6 +80,11 @@ export const menuApi = {
     baseApi<MenuItem>(`${baseUrl}/${id}`, {
       method: "PUT",
       body: payload,
+    }),
+
+  toggleAvailability: (id: number | string) =>
+    baseApi<void>(`${baseUrl}/${id}/toggle-availability`, {
+      method: "PATCH",
     }),
 
   delete: (id: number | string) =>

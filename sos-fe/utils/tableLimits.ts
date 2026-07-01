@@ -66,7 +66,7 @@ export const getStandardTableNumber = (table: TableLike) => {
   if (!match) return null
 
   const tableNumber = Number(match[1])
-  return tableNumber >= 1 && tableNumber <= MAX_FLOOR_PLAN_TABLES ? tableNumber : null
+  return tableNumber >= 1 ? tableNumber : null
 }
 
 export const naturalTableCompare = (a: TableLike, b: TableLike) =>
@@ -85,7 +85,11 @@ export const normalizeStandardTables = <T extends TableLike>(tables: T[]) => {
     }
   })
 
-  return STANDARD_TABLE_NUMBERS.map((tableNumber) => {
+  const extraNumbers = [...byNumber.keys()]
+    .filter((tableNumber) => !STANDARD_TABLE_NUMBERS.includes(tableNumber))
+    .sort((a, b) => a - b)
+
+  return [...STANDARD_TABLE_NUMBERS, ...extraNumbers].map((tableNumber) => {
     const table = byNumber.get(tableNumber)
     if (!table) return null
 

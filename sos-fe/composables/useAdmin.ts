@@ -5,7 +5,7 @@ import { useNuxtApp } from "nuxt/app";
 import type { toast as toastType } from "vue3-toastify";
 import type { MenuItem } from "~/stores/cart";
 import { menuApi, type MenuItemCreateRequest } from "@/api-service/MenuApi";
-import { dashboardApi, employeeApi, reviewApi } from "@/api-service/ExtendedApi";
+import { dashboardApi, employeeApi, invoiceApi, reviewApi } from "@/api-service/ExtendedApi";
 import { useConfirm } from "~/composables/useConfirm";
 
 export const useAdmin = () => {
@@ -56,11 +56,13 @@ export const useAdmin = () => {
     { key: "menu", label: "Món ăn" },
     { key: "staff", label: "Nhân viên" },
     { key: "reviews", label: "Đánh giá" },
+    { key: "invoices", label: "Hóa đơn" },
     { key: "order-status", label: "Trạng thái món" },
     { key: "qr", label: "QR" },
   ]);
 
   const reviews = ref<any[]>([]);
+  const invoices = ref<any[]>([]);
   const dashboardData = ref<any>(null);
 
   const mockReviews = reviews;
@@ -69,7 +71,7 @@ export const useAdmin = () => {
     activeTables: dashboardData.value?.activeTables ?? 0,
     todayRevenue: Number(dashboardData.value?.todayRevenue ?? 0),
     totalOrders: dashboardData.value?.todayOrders ?? 0,
-    averageRating: 4.5,
+    averageRating: Number(dashboardData.value?.averageRating ?? 5),
     monthRevenue: Number(dashboardData.value?.monthRevenue ?? 0),
     pendingOrders: dashboardData.value?.pendingOrders ?? 0,
   }));
@@ -91,6 +93,15 @@ export const useAdmin = () => {
     }
   };
 
+  const fetchInvoices = async () => {
+    try {
+      const list = await invoiceApi.list();
+      invoices.value = Array.isArray(list) ? list : [];
+    } catch {
+      invoices.value = [];
+    }
+  };
+
   const fetchStaff = async () => {
     try {
       const list = await employeeApi.list();
@@ -103,7 +114,27 @@ export const useAdmin = () => {
   onMounted(() => {
     fetchDashboard();
     fetchReviews();
+    fetchInvoices();
     fetchStaff();
+    const nuxt = useNuxtApp() as any;
+    nuxt?.$realtime?.subscribe?.("/topic/reviews", (msg: any) => {
+      if (msg?.type !== "REVIEW_CREATED") return;
+      fetchReviews();
+      fetchDashboard();
+    });
+    nuxt?.$realtime?.subscribe?.("/topic/menu-items", (msg: any) => {
+      if (msg?.type !== "MENU_ITEM_CHANGED" || !msg.item?.id) return;
+      const item = msg.item as MenuItem;
+      if (item.isActive === false) menuStore.removeItem(Number(item.id));
+      else if (menuStore.getItemById(Number(item.id))) menuStore.updateItem(Number(item.id), item);
+      else menuStore.appendItems([item]);
+    });
+    nuxt?.$realtime?.subscribe?.("/topic/payment", (msg: any) => {
+      if (msg?.event === "PAYMENT_REQUESTED" || msg?.event === "PAYMENT_COMPLETED") {
+        fetchInvoices();
+        fetchDashboard();
+      }
+    });
   });
 
   // Fetch menu items from API with pagination
@@ -111,7 +142,7 @@ export const useAdmin = () => {
     loadingMenu.value = true;
     menuError.value = "";
     try {
-      const value = await menuApi.getAvailablePaged(page, size);
+      const value = await menuApi.getActivePaged(page, size);
 
       const items: MenuItem[] = Array.isArray(value?.data?.content)
         ? value.data.content
@@ -150,7 +181,7 @@ export const useAdmin = () => {
     menuStore.isLoadingMore = true;
     try {
       const nextPage = menuStore.page + 1;
-      const value = await menuApi.getAvailablePaged(nextPage, menuStore.size);
+      const value = await menuApi.getActivePaged(nextPage, menuStore.size);
       const newItems: MenuItem[] = Array.isArray(value?.data?.content)
         ? value.data.content
         : Array.isArray(value?.content)
@@ -317,6 +348,7 @@ export const useAdmin = () => {
     newItemForm,
     tabs,
     mockReviews,
+    invoices,
     dashboardData,
 
     // Computed
@@ -332,6 +364,7 @@ export const useAdmin = () => {
     changePageSize,
     fetchDashboard,
     fetchReviews,
+    fetchInvoices,
     fetchStaff,
   };
 };

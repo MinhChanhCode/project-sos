@@ -11,6 +11,7 @@ import com.sqc.sos.model.MenuItem;
 import com.sqc.sos.repository.ICategoryRepository;
 import com.sqc.sos.repository.IMenuItemRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class MenuItemService implements IMenuItemService {
     private final com.sqc.sos.repository.IOrderItemRepository orderItemRepository;
     private final IMenuItemMapper menuItemMapper;
     private final MenuAiSyncService menuAiSyncService;
+    private final ApplicationEventPublisher eventPublisher;
     
     @Override
     @Transactional(readOnly = true)
@@ -86,7 +88,9 @@ public class MenuItemService implements IMenuItemService {
         
         MenuItem savedMenuItem = menuItemRepository.save(menuItem);
         menuAiSyncService.syncMenuSafely();
-        return menuItemMapper.toResponse(savedMenuItem);
+        MenuItemResponse response = menuItemMapper.toResponse(savedMenuItem);
+        eventPublisher.publishEvent(new MenuItemChangedEvent("CREATED", response));
+        return response;
     }
     
     @Override
@@ -150,7 +154,9 @@ public class MenuItemService implements IMenuItemService {
         
         MenuItem updatedMenuItem = menuItemRepository.save(existingMenuItem);
         menuAiSyncService.syncMenuSafely();
-        return menuItemMapper.toResponse(updatedMenuItem);
+        MenuItemResponse response = menuItemMapper.toResponse(updatedMenuItem);
+        eventPublisher.publishEvent(new MenuItemChangedEvent("UPDATED", response));
+        return response;
     }
     
     @Override
@@ -168,8 +174,9 @@ public class MenuItemService implements IMenuItemService {
                 .orElseThrow(() -> new AppException(ErrorCode.MENU_ITEM_NOT_FOUND));
         
         menuItem.setIsAvailable(!menuItem.getIsAvailable());
-        menuItemRepository.save(menuItem);
+        MenuItem saved = menuItemRepository.save(menuItem);
         menuAiSyncService.syncMenuSafely();
+        eventPublisher.publishEvent(new MenuItemChangedEvent("AVAILABILITY_CHANGED", menuItemMapper.toResponse(saved)));
     }
     
     @Override
@@ -178,8 +185,9 @@ public class MenuItemService implements IMenuItemService {
                 .orElseThrow(() -> new AppException(ErrorCode.MENU_ITEM_NOT_FOUND));
         
         menuItem.setIsActive(!menuItem.getIsActive());
-        menuItemRepository.save(menuItem);
+        MenuItem saved = menuItemRepository.save(menuItem);
         menuAiSyncService.syncMenuSafely();
+        eventPublisher.publishEvent(new MenuItemChangedEvent("ACTIVE_CHANGED", menuItemMapper.toResponse(saved)));
     }
 
     // ===== Promotions embedded in MenuItem =====

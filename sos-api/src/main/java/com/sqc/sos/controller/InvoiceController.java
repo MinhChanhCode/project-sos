@@ -33,6 +33,11 @@ public class InvoiceController {
         return ResponseEntity.ok(ApiResponse.success(invoicePaymentService.createInvoice(orderId), "Tạo hóa đơn thành công"));
     }
 
+    @PostMapping("/public/session/{sessionId}")
+    public ResponseEntity<ApiResponse<InvoiceResponse>> createForSession(@PathVariable String sessionId) {
+        return ResponseEntity.ok(ApiResponse.success(invoicePaymentService.createInvoiceForSession(sessionId), "Tạo hóa đơn thanh toán thành công"));
+    }
+
     @PostMapping("/payment/confirm")
     public ResponseEntity<ApiResponse<InvoiceResponse>> confirmPayment(@RequestBody PaymentConfirmRequest request) {
         return ResponseEntity.ok(ApiResponse.success(invoicePaymentService.confirmPayment(request), "Xác nhận thanh toán thành công"));

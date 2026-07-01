@@ -47,6 +47,9 @@
             <div v-else-if="item.key === 'reviews'">
               <AdminReviewsSection :reviews="mockReviews" />
             </div>
+            <div v-else-if="item.key === 'invoices'">
+              <AdminInvoicesSection :invoices="invoices" @refresh="fetchInvoices" />
+            </div>
             <div v-else-if="item.key === 'order-status'">
               <OrderItemStatusManager />
             </div>
@@ -107,6 +110,7 @@ const {
   newItemForm,
   tabs,
   mockReviews,
+  invoices,
   dashboardStats,
   dashboardData,
   loadingMenu,
@@ -116,6 +120,7 @@ const {
   deleteItem,
   changePage,
   changePageSize,
+  fetchInvoices,
 } = useAdmin();
 
 const handleLogout = () => {

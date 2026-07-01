@@ -19,6 +19,7 @@ public class DashboardResponse {
     long monthOrders;
     long activeTables;
     long pendingOrders;
+    BigDecimal averageRating;
     Map<String, Long> sentimentSummary;
     List<TopItem> topItems;
     List<RevenuePoint> revenueByDay;

@@ -6,13 +6,14 @@ import { useNuxtApp } from "nuxt/app";
 import type { toast as toastType } from "vue3-toastify";
 import { menuApi } from "@/api-service/MenuApi";
 import { CartApi, TableApi } from "@/api-service";
-import { categoryApi, customerSessionApi, reviewApi } from "@/api-service/ExtendedApi";
+import { categoryApi, customerSessionApi, invoiceApi, reviewApi } from "@/api-service/ExtendedApi";
 export const useCustomer = () => {
   const cartStore = useCartStore();
   const menuStore = useMenuStore();
 
   // Reactive data
   const showCart = ref(false);
+  const showPaymentBill = ref(false);
   const showRatingDialog = ref(false);
   const ratingValue = ref(5);
   const ratingComment = ref("");
@@ -50,12 +51,16 @@ export const useCustomer = () => {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/đ/g, "d");
 
-  const categoryUi = [
-    { name: "Món chính", icon: "🍜" },
-    { name: "Khai vị", icon: "🥗" },
-    { name: "Đồ uống", icon: "🥤" },
-    { name: "Combo", icon: "🍱" },
-  ];
+  const categoryIconMap: Record<string, string> = {
+    "mon chinh": "🍜",
+    "khai vi": "🥗",
+    "do uong": "🥤",
+    "combo": "🍱",
+    "do nuong": "🔥",
+    "lau": "🍲",
+    "bia/nuoc giai khat": "🍺",
+    "bia nuoc giai khat": "🍺",
+  };
   function generateUUID() {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
       const r = (Math.random() * 16) | 0;
@@ -95,6 +100,8 @@ export const useCustomer = () => {
   const updatingQuantity = ref<Set<number>>(new Set()); // Track items being updated
   const isCartOperationInProgress = ref(false); // Track if any cart operation is in progress
   const lastAddedItem = ref<{id: number, name: string, quantity: number} | null>(null)
+  const currentInvoice = ref<any | null>(null)
+  const requestingPayment = ref(false)
   
   // Chuẩn hóa dữ liệu MenuItem từ API để đảm bảo có trường khuyến mãi
   const normalizeMenuItem = (i: any): MenuItem => {
@@ -142,7 +149,7 @@ export const useCustomer = () => {
         ? await menuApi.searchPaged(searchQuery.value, 0, menuStore.size)
         : selectedCategory.value !== "all"
         ? await menuApi.getByCategoryPaged(selectedCategory.value, 0, menuStore.size)
-        : await menuApi.getAvailablePaged(0, menuStore.size);
+        : await menuApi.getActivePaged(0, menuStore.size);
       const rawItems: any[] = Array.isArray(value?.data?.content)
         ? value.data.content
         : value?.content ?? [];
@@ -174,19 +181,14 @@ export const useCustomer = () => {
       const list = await categoryApi.list();
       const rawCategories = Array.isArray(list) ? list : [];
       const activeCategories = rawCategories.filter((category) => category?.isActive !== false);
-      const mappedCategories = categoryUi
-        .map((uiCategory) => {
-          const matched = activeCategories.find(
-            (category) => normalizeText(category.name) === normalizeText(uiCategory.name)
-          );
-          if (!matched) return null;
-          return {
-            id: String(matched.id),
-            name: uiCategory.name,
-            icon: uiCategory.icon,
-          };
-        })
-        .filter(Boolean) as Array<{ id: string; name: string; icon: string }>;
+      const mappedCategories = activeCategories.map((category) => {
+        const normalizedName = normalizeText(category.name);
+        return {
+          id: String(category.id),
+          name: String(category.name),
+          icon: categoryIconMap[normalizedName] || "🍽",
+        };
+      });
 
       if (mappedCategories.length) {
         menuStore.setCategories([
@@ -209,7 +211,7 @@ export const useCustomer = () => {
         ? await menuApi.searchPaged(searchQuery.value, nextPage, menuStore.size)
         : selectedCategory.value !== "all"
         ? await menuApi.getByCategoryPaged(selectedCategory.value, nextPage, menuStore.size)
-        : await menuApi.getAvailablePaged(nextPage, menuStore.size);
+        : await menuApi.getActivePaged(nextPage, menuStore.size);
       const rawItems: any[] = Array.isArray(value?.data?.content)
         ? value.data.content
         : value?.content ?? [];
@@ -469,6 +471,11 @@ export const useCustomer = () => {
   };
 
   const addToCart = async (item: any) => {
+    if (item?.isAvailable === false) {
+      const toast = useNuxtApp().$toast as typeof toastType;
+      toast.error("Món này hiện đã hết, vui lòng chọn món khác.");
+      return;
+    }
     if (!customerName.value.trim()) {
       showCustomerNameDialog.value = true;
       return;
@@ -585,6 +592,24 @@ export const useCustomer = () => {
     }
     showRatingDialog.value = false;
     ratingComment.value = "";
+  };
+
+  const requestPayment = async () => {
+    const toast = useNuxtApp().$toast as typeof toastType;
+    if (!cartStore.orderedItems.length) {
+      toast.info("Bạn cần đặt món trước khi yêu cầu thanh toán");
+      return;
+    }
+    requestingPayment.value = true;
+    try {
+      currentInvoice.value = await invoiceApi.createForSession(sessionId.value);
+      showPaymentBill.value = true;
+      toast.success("Đã gửi yêu cầu thanh toán cho nhân viên");
+    } catch (e: any) {
+      toast.error(e.message || "Không thể tạo hóa đơn thanh toán");
+    } finally {
+      requestingPayment.value = false;
+    }
   };
 
   // Sync ordered items từ server để hiển thị tất cả món đã đặt của cả bàn
@@ -729,6 +754,31 @@ export const useCustomer = () => {
             syncOrderedItemsFromServer()
           }
         })
+
+        nuxt.$realtime.subscribe('/topic/menu-items', (msg: any) => {
+          if (msg?.type !== 'MENU_ITEM_CHANGED' || !msg.item?.id) return
+          const item = normalizeMenuItem(msg.item)
+          const existing = menuStore.getItemById(item.id)
+          if (msg.action === 'ACTIVE_CHANGED' && item.isActive === false) {
+            menuStore.removeItem(item.id)
+            return
+          }
+          if (existing) {
+            menuStore.updateItem(item.id, item)
+          } else if (item.isActive !== false) {
+            menuStore.appendItems([item])
+          }
+        })
+
+        nuxt.$realtime.subscribe('/topic/payment', (msg: any) => {
+          if (msg?.event !== 'PAYMENT_COMPLETED') return
+          if (msg.tableId && String(msg.tableId) !== String(tableId.value)) return
+          if (currentInvoice.value && (!msg.invoiceId || Number(currentInvoice.value.id) === Number(msg.invoiceId))) {
+            currentInvoice.value = { ...currentInvoice.value, status: 'PAID', paidAt: new Date().toISOString() }
+          }
+          const toast = useNuxtApp().$toast as typeof toastType
+          toast.success('Thanh toán đã được xác nhận. Cảm ơn quý khách!')
+        })
       }
     }
   });
@@ -804,6 +854,7 @@ export const useCustomer = () => {
 
     // Reactive data
     showCart,
+    showPaymentBill,
     showRatingDialog,
     showCustomerNameDialog,
     savingCustomerName,
@@ -822,6 +873,8 @@ export const useCustomer = () => {
     addingToCart,
     updatingQuantity,
     isCartOperationInProgress,
+    currentInvoice,
+    requestingPayment,
 
     // Computed
     categories,
@@ -831,6 +884,7 @@ export const useCustomer = () => {
     addToCart,
     confirmOrder,
     submitRating,
+    requestPayment,
     updateQuantity,
     updateNote,
     removeFromCart,

@@ -25,6 +25,9 @@
         <span v-if="hasPromotion" class="rounded-full bg-emerald-500 px-2 py-0.5 text-[11px] font-bold text-white shadow">
           Sale
         </span>
+        <span v-if="isUnavailable" class="rounded-full bg-gray-900 px-2 py-0.5 text-[11px] font-bold text-white shadow">
+          Hết món
+        </span>
       </div>
     </div>
 
@@ -63,11 +66,11 @@
         <button
           class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-500 text-white shadow-md shadow-orange-500/25 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
           type="button"
-          :disabled="isAddingToCart"
+          :disabled="isAddingToCart || isUnavailable"
           @click="$emit('add-to-cart', { ...item, quantity: 1 })"
-          title="Thêm vào giỏ"
+          :title="isUnavailable ? 'Món đã hết' : 'Thêm vào giỏ'"
         >
-          <Icon name="lucide:plus" class="h-5 w-5" />
+          <Icon :name="isUnavailable ? 'lucide:ban' : 'lucide:plus'" class="h-5 w-5" />
         </button>
       </div>
     </div>
@@ -93,6 +96,7 @@ defineEmits<{
 }>();
 
 const hasPromotion = computed(() => typeof props.item.promotionalPrice === 'number' && props.item.promotionalPrice! > 0 && props.item.promotionalPrice! < props.item.price);
+const isUnavailable = computed(() => props.item.isAvailable === false);
 const promotionalPrice = computed(() => hasPromotion.value ? Number(props.item.promotionalPrice) : props.item.price);
 const originalPrice = computed(() => hasPromotion.value ? (props.item.originalPrice || props.item.price) : props.item.price);
 const imageSrc = computed(() =>

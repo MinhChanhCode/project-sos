@@ -31,7 +31,7 @@
       <div class="p-4 flex items-center space-x-2">
         <Icon name="lucide:star" class="w-8 h-8 text-yellow-600" />
         <div>
-          <div class="text-2xl font-bold">{{ stats.averageRating }}</div>
+          <div class="text-2xl font-bold">{{ Number.isFinite(stats.averageRating) ? stats.averageRating.toFixed(1) : '5.0' }}</div>
           <div class="text-sm text-gray-600">Đánh giá TB</div>
         </div>
       </div>

@@ -64,7 +64,7 @@ public class TableQueryService {
                 .sorted(Comparator.comparing(table -> getStandardTableNumber(table.getName())))
                 .map(t -> {
                     Integer tableNumber = getStandardTableNumber(t.getName());
-                    int[] defaultPosition = DEFAULT_TABLE_POSITIONS[tableNumber - 1];
+                    int[] defaultPosition = getDefaultTablePosition(tableNumber);
                     Integer posX = t.getPosX() != null && t.getPosX() > 0 ? t.getPosX() : defaultPosition[0];
                     Integer posY = t.getPosY() != null && t.getPosY() > 0 ? t.getPosY() : defaultPosition[1];
                     // Lấy tất cả orders chưa completed của bàn
@@ -109,11 +109,21 @@ public class TableQueryService {
         String normalized = name.trim().replaceAll("\\s+", " ");
         if (!normalized.matches("(?i)^Bàn \\d+$")) return null;
         int number = Integer.parseInt(normalized.replaceAll("\\D+", ""));
-        return number >= 1 && number <= MAX_STANDARD_TABLES ? number : null;
+        return number >= 1 ? number : null;
     }
 
     private String getDefaultTableName(int tableNumber) {
         return "Bàn " + tableNumber;
+    }
+
+    private int[] getDefaultTablePosition(int tableNumber) {
+        if (tableNumber >= 1 && tableNumber <= DEFAULT_TABLE_POSITIONS.length) {
+            return DEFAULT_TABLE_POSITIONS[tableNumber - 1];
+        }
+        int index = tableNumber - DEFAULT_TABLE_POSITIONS.length - 1;
+        int col = Math.floorMod(index, 6);
+        int row = Math.floorDiv(Math.max(index, 0), 6);
+        return new int[] {120 + col * 180, 860 + row * 150};
     }
 
     public TableDetailResponse getTableDetail(UUID tableId) {

@@ -106,7 +106,7 @@ public class QrCodeService {
         String normalized = name.trim().replaceAll("\\s+", " ");
         if (!normalized.matches("(?i)^Bàn \\d+$")) return null;
         int number = Integer.parseInt(normalized.replaceAll("\\D+", ""));
-        return number >= 1 && number <= 20 ? number : null;
+        return number >= 1 ? number : null;
     }
 
     private boolean isLocalUrl(String url) {

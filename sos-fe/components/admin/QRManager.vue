@@ -112,7 +112,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import QrcodeVue from "qrcode.vue";
-import { useRuntimeConfig } from "nuxt/app";
+import { useNuxtApp, useRuntimeConfig } from "nuxt/app";
 import { TableApi } from "@/api-service";
 import { qrCodeApi } from "@/api-service/ExtendedApi";
 import { getStandardTableNumber, normalizeStandardTables } from "~/utils/tableLimits";
@@ -269,6 +269,10 @@ const printSelected = () => {
 onMounted(() => {
   fetchPublicQrUrl();
   fetchTables();
+  const nuxt = useNuxtApp() as any;
+  nuxt?.$realtime?.subscribe?.("/topic/management/tables", () => {
+    fetchTables();
+  });
 });
 </script>
 

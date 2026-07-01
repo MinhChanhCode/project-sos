@@ -216,6 +216,42 @@ const FOOD_IMAGE_RULES: FoodImageRule[] = [
     patterns: ["combo gia dinh", "combo gia đình"],
     path: lauThaiHaiSanImage,
   },
+  {
+    patterns: ["ba chi bo nuong", "bò nướng", "bo nuong", "com bo nuong"],
+    path: comTamSuonBiChaImage,
+  },
+  {
+    patterns: ["suon heo nuong", "sườn heo nướng", "mat ong", "mật ong"],
+    path: comTamSuonBiChaImage,
+  },
+  {
+    patterns: ["ga nuong", "gà nướng"],
+    path: comGaXoiMoImage,
+  },
+  {
+    patterns: ["hai san nuong", "hải sản nướng", "bach tuoc", "bạch tuộc", "mi cay hai san", "mì cay hải sản"],
+    path: lauThaiHaiSanImage,
+  },
+  {
+    patterns: ["dau hu nuong", "đậu hũ nướng", "lau nam chay", "lẩu nấm chay"],
+    path: goiCuonTomThitImage,
+  },
+  {
+    patterns: ["lau bo", "lẩu bò", "lau ga", "lẩu gà", "lau kim chi", "lẩu kim chi", "lau cua", "lẩu cua", "combo lau", "combo lẩu"],
+    path: lauThaiHaiSanImage,
+  },
+  {
+    patterns: ["bia", "cola", "nuoc suoi", "nước suối", "nuoc ngot", "nước ngọt"],
+    path: traTacXiMuoiImage,
+  },
+  {
+    patterns: ["nuoc chanh sa", "nước chanh sả", "chanh sa", "chanh sả"],
+    path: traChanhImage,
+  },
+  {
+    patterns: ["combo nuong", "combo nướng"],
+    path: comTamSuonBiChaImage,
+  },
 ];
 
 const CATEGORY_IMAGE_PATHS: Record<string, string> = {
