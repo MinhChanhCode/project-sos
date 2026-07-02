@@ -748,13 +748,6 @@ export const useCustomer = () => {
           }
         } );
 
-        // Subscribe cho management updates - khi staff thay đổi trạng thái món
-        nuxt.$realtime.subscribe('/topic/management/order-items', (msg: any) => {
-          if (msg?.type === 'ORDER_ITEM_STATUS_CHANGED') {
-            syncOrderedItemsFromServer()
-          }
-        })
-
         nuxt.$realtime.subscribe('/topic/menu-items', (msg: any) => {
           if (msg?.type !== 'MENU_ITEM_CHANGED' || !msg.item?.id) return
           const item = normalizeMenuItem(msg.item)

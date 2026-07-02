@@ -8,6 +8,7 @@ import com.sqc.sos.exception.ErrorCode;
 import com.sqc.sos.model.Order;
 import com.sqc.sos.model.OrderItem;
 import com.sqc.sos.model.TableEntity;
+import com.sqc.sos.model.TableStatus;
 import com.sqc.sos.repository.IOrderItemRepository;
 import com.sqc.sos.repository.ICartRepository;
 import com.sqc.sos.repository.ICartItemRepository;
@@ -67,21 +68,20 @@ public class TableQueryService {
                     int[] defaultPosition = getDefaultTablePosition(tableNumber);
                     Integer posX = t.getPosX() != null && t.getPosX() > 0 ? t.getPosX() : defaultPosition[0];
                     Integer posY = t.getPosY() != null && t.getPosY() > 0 ? t.getPosY() : defaultPosition[1];
-                    // Lấy tất cả orders chưa completed của bàn
+                    // Lấy order đang mở của bàn; order PAID/COMPLETED không còn là active.
                     List<Order> orders = orderRepository.findByTableId(t.getId());
                     java.math.BigDecimal totalAmount = java.math.BigDecimal.ZERO;
-                    String status = Boolean.TRUE.equals(t.getIsAvailable()) ? "trống" : "đang đặt";
+                    String status = getDisplayStatus(t);
                     Long activeOrderId = null;
 
                     for (Order order : orders) {
-                        if (order.getStatus() == null || !"COMPLETED".equalsIgnoreCase(order.getStatus())) {
+                        if (isActiveOrder(order)) {
                             activeOrderId = order.getId();
                             List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
                             for (OrderItem item : orderItems) {
                                 int qty = item.getEffectiveQuantity();
                                 totalAmount = totalAmount.add(item.getMenuItem().getPrice().multiply(new java.math.BigDecimal(qty)));
                             }
-                            // Có thể cập nhật status động hơn ở đây nếu muốn
                         }
                     }
 
@@ -116,6 +116,19 @@ public class TableQueryService {
         return "Bàn " + tableNumber;
     }
 
+    private boolean isActiveOrder(Order order) {
+        return order != null && (order.getStatus() == null || "PENDING".equalsIgnoreCase(order.getStatus()));
+    }
+
+    private String getDisplayStatus(TableEntity table) {
+        TableStatus tableStatus = table.getTableStatus();
+        if (tableStatus == TableStatus.WAITING_PAYMENT) return "chờ thanh toán";
+        if (tableStatus == TableStatus.NEEDS_CLEANING) return "cần dọn bàn";
+        if (tableStatus == TableStatus.RESERVED) return "đã đặt trước";
+        if (tableStatus == TableStatus.SERVING || Boolean.FALSE.equals(table.getIsAvailable())) return "đang đặt";
+        return "trống";
+    }
+
     private int[] getDefaultTablePosition(int tableNumber) {
         if (tableNumber >= 1 && tableNumber <= DEFAULT_TABLE_POSITIONS.length) {
             return DEFAULT_TABLE_POSITIONS[tableNumber - 1];
@@ -139,8 +152,8 @@ public class TableQueryService {
         
         // Lấy items từ tất cả orders của bàn (không chỉ activeOrder)
         for (Order order : orders) {
-            // Chỉ lấy items từ orders chưa completed
-            if (order.getStatus() == null || !"COMPLETED".equalsIgnoreCase(order.getStatus())) {
+            // Chỉ lấy items từ order đang mở để bàn đã PAID/COMPLETED không còn hiện là active.
+            if (isActiveOrder(order)) {
                 List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
                 
                 for (OrderItem item : orderItems) {
@@ -234,10 +247,11 @@ public class TableQueryService {
                 .tableId(table.getId())
                 .tableName(table.getName())
                 .customers(table.getCapacity())
-                .status(Boolean.TRUE.equals(table.getIsAvailable()) ? "trống" : "đang đặt")
+                .status(getDisplayStatus(table))
+                .tableStatus(table.getTableStatus() != null ? table.getTableStatus().name() : "EMPTY")
                 .totalAmount(totalAmount)
                 .activeOrderId(orders.stream()
-                        .filter(o -> o.getStatus() == null || !"COMPLETED".equalsIgnoreCase(o.getStatus()))
+                        .filter(this::isActiveOrder)
                         .findFirst()
                         .map(Order::getId)
                         .orElse(null))
@@ -254,8 +268,8 @@ public class TableQueryService {
         boolean hasUnservedItems = false;
         
         for (Order order : orders) {
-            // CHỈ kiểm tra orders chưa completed (đang mở)
-            if (order.getStatus() == null || !"COMPLETED".equalsIgnoreCase(order.getStatus())) {
+            // CHỈ kiểm tra order đang mở
+            if (isActiveOrder(order)) {
                 List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
                 for (OrderItem item : orderItems) {
                     // Debug: Log item quantities to understand the issue
@@ -302,6 +316,7 @@ public class TableQueryService {
 
         // Giải phóng bàn: đặt isAvailable = true
         table.setIsAvailable(true);
+        table.setTableStatus(TableStatus.EMPTY);
         tableRepository.save(table);
 
         // Phát sự kiện realtime để client (khách) xóa cache local
@@ -319,10 +334,10 @@ public class TableQueryService {
     public TableListItemResponse toListItem(TableEntity t) {
         List<Order> orders = orderRepository.findByTableId(t.getId());
         java.math.BigDecimal totalAmount = java.math.BigDecimal.ZERO;
-        String status = Boolean.TRUE.equals(t.getIsAvailable()) ? "trống" : "đang đặt";
+        String status = getDisplayStatus(t);
         Long activeOrderId = null;
         for (Order order : orders) {
-            if (order.getStatus() == null || !"COMPLETED".equalsIgnoreCase(order.getStatus())) {
+            if (isActiveOrder(order)) {
                 activeOrderId = order.getId();
                 List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
                 for (OrderItem item : orderItems) {

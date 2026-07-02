@@ -35,7 +35,10 @@ export const DEFAULT_TABLE_POSITIONS = [
 ]
 
 export const getDefaultTablePosition = (tableNumber: number) =>
-  DEFAULT_TABLE_POSITIONS[tableNumber - 1] || { posX: 20, posY: 20 }
+  DEFAULT_TABLE_POSITIONS[tableNumber - 1] || {
+    posX: 120 + ((tableNumber - DEFAULT_TABLE_POSITIONS.length - 1) % 6) * 180,
+    posY: 860 + Math.floor((tableNumber - DEFAULT_TABLE_POSITIONS.length - 1) / 6) * 150,
+  }
 
 const useSavedPosition = (position: number | undefined) =>
   typeof position === 'number' && position > 0
@@ -54,8 +57,7 @@ export const getStandardTableNumber = (table: TableLike) => {
   const explicitNumber = Number(table.tableNumber)
   if (
     Number.isInteger(explicitNumber) &&
-    explicitNumber >= 1 &&
-    explicitNumber <= MAX_FLOOR_PLAN_TABLES
+    explicitNumber >= 1
   ) {
     return explicitNumber
   }

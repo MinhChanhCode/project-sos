@@ -18,7 +18,7 @@ export const useStaff = () => {
     id: string
     number: string
     tableNumber?: number
-    status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "đã phục vụ" | "sẵn sàng" | "đang chế biến" | "served" | "ready" | "preparing" | "có khách"
+    status: "trống" | "đang đặt" | "chờ phục vụ" | "đang ăn" | "thanh toán" | "đã phục vụ" | "sẵn sàng" | "đang chế biến" | "served" | "ready" | "preparing" | "có khách" | "cần dọn bàn"
     customers: number
     assignedStaff: string
     totalAmount: number
@@ -50,6 +50,21 @@ export const useStaff = () => {
   const staffRole = ref('server')
   const activeTab = ref('tables')
   const { soundEnabled, toggleSound, playNotificationSound } = useNotificationSound()
+
+  const mapBackendTableStatus = (table: any) => {
+    const display = getTableDisplayStatus(table)
+    const map: Record<string, Table['status']> = {
+      'Trống': 'trống',
+      'Có khách': 'có khách',
+      'Đang gọi món': 'đang đặt',
+      'Chờ bếp': 'đang chế biến',
+      'Món sẵn sàng': 'sẵn sàng',
+      'Đang phục vụ': 'chờ phục vụ',
+      'Chờ thanh toán': 'thanh toán',
+      'Cần dọn bàn': 'cần dọn bàn',
+    }
+    return map[display] || (table?.isAvailable ? 'trống' : 'có khách')
+  }
 
   // Computed
   const showTableDetail = computed({
@@ -86,7 +101,7 @@ export const useStaff = () => {
           id: String(t.id),
           number: tableNumber ? getDefaultTableName(tableNumber) : String(t.name || t.number || t.id),
           tableNumber: tableNumber || undefined,
-          status: t.isAvailable ? 'trống' as const : 'có khách',
+          status: mapBackendTableStatus(t),
           customers: t.isAvailable ? 0 : 1,
           orders: [],
           assignedStaff: '',
@@ -109,6 +124,8 @@ export const useStaff = () => {
             const target = (staffStore as any).tables.find((x: any) => x.id === String(t.id))
             if (!target) return
             target.totalAmount = Number(d?.totalAmount || 0)
+            target.tableStatus = d?.tableStatus || target.tableStatus
+            target.status = mapBackendTableStatus({ ...target, ...d, isAvailable: d?.status === 'trống' ? true : target.isAvailable })
             target.customers = d?.status === 'trống' ? 0 : Number(d?.customers || 1)
             // Có order hiện tại -> nạp danh sách món
             if (d?.orderId) {
@@ -556,7 +573,8 @@ export const useStaff = () => {
         }
       } else {
         target.orders = []
-        target.status = d?.isAvailable ? 'trống' : 'đang đặt'
+        target.tableStatus = d?.tableStatus || target.tableStatus
+        target.status = mapBackendTableStatus({ ...target, ...d, isAvailable: d?.status === 'trống' })
       }
 
       // Sync selection if viewing this table

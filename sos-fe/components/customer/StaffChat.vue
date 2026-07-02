@@ -76,6 +76,7 @@ const messagesRef = ref<HTMLElement | null>(null);
 const nuxt = useNuxtApp() as any;
 const unreadStaffReplies = ref(0);
 const { playNotificationSound } = useNotificationSound();
+const subscribedTableIds = new Set<string>();
 
 const scrollBottom = () => nextTick(() => messagesRef.value?.scrollTo({ top: 99999, behavior: "smooth" }));
 const formatTime = (value?: string) => (value ? new Date(value).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "");
@@ -115,6 +116,8 @@ const send = async () => {
 
 const setupRealtime = () => {
   if (!props.tableId || !nuxt?.$realtime) return;
+  if (subscribedTableIds.has(props.tableId)) return;
+  subscribedTableIds.add(props.tableId);
   nuxt.$realtime.subscribe(`/topic/tables/${props.tableId}/staff-chat`, (payload: any) => {
     const message = payload?.data;
     if (payload?.type === "STAFF_CHAT_MESSAGE" && message && !messages.value.some((m) => m.id === message.id)) {

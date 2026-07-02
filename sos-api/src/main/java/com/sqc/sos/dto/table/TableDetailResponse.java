@@ -17,6 +17,7 @@ public class TableDetailResponse {
     String tableName;
     Integer customers;
     String status;
+    String tableStatus;
     BigDecimal totalAmount;
     Long activeOrderId; // Order đang hoạt động (nếu có)
     List<TableOrderItemSummary> sessionItems; // Items từ giỏ hàng đang hoạt động (session hiện tại)

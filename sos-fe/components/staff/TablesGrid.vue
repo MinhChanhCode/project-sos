@@ -2,7 +2,7 @@
   <div>
     <div class="mb-4">
       <h2 class="text-lg font-semibold">Bàn được phân công</h2>
-      <p class="text-sm text-gray-500 dark:text-gray-400">Đồng bộ từ Admin &gt; Sơ đồ bàn, hiển thị {{ displayedTables.length }}/20 bàn.</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Đồng bộ từ Admin &gt; Sơ đồ bàn, hiển thị {{ displayedTables.length }} bàn.</p>
     </div>
 
     <div class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">

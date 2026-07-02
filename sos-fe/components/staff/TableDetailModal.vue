@@ -264,6 +264,7 @@ const paying = ref(false)
 const activeOrderId = ref<number | null>(null)
 const showPaymentBill = ref(false)
 const currentInvoice = ref<any | null>(null)
+const subscribedTableIds = new Set<string>()
 
 // Load latest table detail and split quantities into per-status items
 const loadTableOrders = async () => {
@@ -355,6 +356,9 @@ const updateItemStatusOptimistic = (itemId: string, newStatus: string) => {
 // Real-time subscription for table updates
 watch(() => [props.table?.id, props.modelValue], ([tableId, isOpen]) => {
   if (!tableId || !isOpen) return
+  const subscriptionKey = String(tableId)
+  if (subscribedTableIds.has(subscriptionKey)) return
+  subscribedTableIds.add(subscriptionKey)
   
   const nuxt = useNuxtApp() as any
   if (nuxt?.$realtime) {

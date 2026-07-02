@@ -110,8 +110,8 @@ public class InvoicePaymentService {
 
         if (order.getTable() != null) {
             TableEntity table = order.getTable();
-            table.setTableStatus(TableStatus.EMPTY);
-            table.setIsAvailable(true);
+            table.setTableStatus(TableStatus.NEEDS_CLEANING);
+            table.setIsAvailable(false);
             tableRepository.save(table);
             eventPublisher.publishEvent(new TableStatusChangedEvent());
         }

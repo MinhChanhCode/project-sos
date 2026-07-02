@@ -33,6 +33,7 @@
               :src="getCartImageUrl(item)"
               :alt="item.name" 
               class="w-12 h-12 object-cover rounded" 
+              loading="lazy"
               @error="(event) => useCartFallbackImage(event, item)"
             />
             <div class="flex-1">
@@ -106,6 +107,7 @@
                :src="getCartImageUrl(item)"
                :alt="item.name"
                class="w-12 h-12 object-cover rounded"
+               loading="lazy"
                @error="(event) => useCartFallbackImage(event, item)"
              />
              <div class="flex-1">
