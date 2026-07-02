@@ -37,7 +37,15 @@ export const getTableOrderSummary = (table: AnyTable) => {
 
 export const getTableDisplayStatus = (table: AnyTable) => {
   const raw = String(table?.tableStatus || table?.status || "").toUpperCase();
+  const statusText = String(table?.status || "").toLowerCase();
   const summary = getTableOrderSummary(table);
+
+  if (statusText.includes("thanh toán")) return "Chờ thanh toán";
+  if (statusText.includes("dọn")) return "Cần dọn bàn";
+  if (statusText.includes("sẵn sàng")) return "Món sẵn sàng";
+  if (statusText.includes("chờ bếp")) return "Chờ bếp";
+  if (statusText.includes("gọi món")) return "Đang gọi món";
+  if (statusText.includes("có khách") || statusText.includes("đang đặt") || statusText.includes("phục vụ")) return "Có khách";
 
   if (raw === "EMPTY" || table?.isAvailable === true || table?.status === "trống") {
     if (!summary.total) return "Trống";

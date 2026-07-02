@@ -51,28 +51,20 @@ public class TableQueryService {
     private final ApplicationEventPublisher eventPublisher;
 
     public List<TableListItemResponse> listAllTables() {
-        Map<Integer, TableEntity> standardTables = tableRepository.findAll().stream()
-                .sorted(Comparator.comparing(table -> table.getId().toString()))
-                .filter(table -> getStandardTableNumber(table.getName()) != null)
-                .collect(Collectors.toMap(
-                        table -> getStandardTableNumber(table.getName()),
-                        table -> table,
-                        (first, ignored) -> first,
-                        LinkedHashMap::new
-                ));
-
-        return standardTables.values().stream()
-                .sorted(Comparator.comparing(table -> getStandardTableNumber(table.getName())))
+        return tableRepository.findAll().stream()
+                .sorted(this::compareTablesForFloorPlan)
                 .map(t -> {
                     Integer tableNumber = getStandardTableNumber(t.getName());
-                    int[] defaultPosition = getDefaultTablePosition(tableNumber);
+                    int[] defaultPosition = getDefaultTablePosition(tableNumber != null ? tableNumber : 1);
                     Integer posX = t.getPosX() != null && t.getPosX() > 0 ? t.getPosX() : defaultPosition[0];
                     Integer posY = t.getPosY() != null && t.getPosY() > 0 ? t.getPosY() : defaultPosition[1];
                     // Lấy order đang mở của bàn; order PAID/COMPLETED không còn là active.
                     List<Order> orders = orderRepository.findByTableId(t.getId());
                     java.math.BigDecimal totalAmount = java.math.BigDecimal.ZERO;
-                    String status = getDisplayStatus(t);
                     Long activeOrderId = null;
+                    int pendingQuantity = 0;
+                    int preparingQuantity = 0;
+                    int readyQuantity = 0;
 
                     for (Order order : orders) {
                         if (isActiveOrder(order)) {
@@ -81,9 +73,13 @@ public class TableQueryService {
                             for (OrderItem item : orderItems) {
                                 int qty = item.getEffectiveQuantity();
                                 totalAmount = totalAmount.add(item.getMenuItem().getPrice().multiply(new java.math.BigDecimal(qty)));
+                                pendingQuantity += item.getPendingQuantity() == null ? 0 : item.getPendingQuantity();
+                                preparingQuantity += item.getPreparingQuantity() == null ? 0 : item.getPreparingQuantity();
+                                readyQuantity += item.getCompletedQuantity() == null ? 0 : item.getCompletedQuantity();
                             }
                         }
                     }
+                    String status = getDisplayStatus(t, pendingQuantity, preparingQuantity, readyQuantity, activeOrderId != null);
 
                     return TableListItemResponse.builder()
                             .id(t.getId())
@@ -104,6 +100,15 @@ public class TableQueryService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    private int compareTablesForFloorPlan(TableEntity a, TableEntity b) {
+        Integer numberA = getStandardTableNumber(a.getName());
+        Integer numberB = getStandardTableNumber(b.getName());
+        if (numberA != null && numberB != null) return numberA.compareTo(numberB);
+        if (numberA != null) return -1;
+        if (numberB != null) return 1;
+        return String.valueOf(a.getName()).compareToIgnoreCase(String.valueOf(b.getName()));
+    }
+
     private Integer getStandardTableNumber(String name) {
         if (name == null) return null;
         String normalized = name.trim().replaceAll("\\s+", " ");
@@ -121,11 +126,18 @@ public class TableQueryService {
     }
 
     private String getDisplayStatus(TableEntity table) {
+        return getDisplayStatus(table, 0, 0, 0, false);
+    }
+
+    private String getDisplayStatus(TableEntity table, int pendingQuantity, int preparingQuantity, int readyQuantity, boolean hasActiveOrder) {
         TableStatus tableStatus = table.getTableStatus();
         if (tableStatus == TableStatus.WAITING_PAYMENT) return "chờ thanh toán";
         if (tableStatus == TableStatus.NEEDS_CLEANING) return "cần dọn bàn";
         if (tableStatus == TableStatus.RESERVED) return "đã đặt trước";
-        if (tableStatus == TableStatus.SERVING || Boolean.FALSE.equals(table.getIsAvailable())) return "đang đặt";
+        if (readyQuantity > 0) return "món sẵn sàng";
+        if (preparingQuantity > 0) return "chờ bếp";
+        if (pendingQuantity > 0) return "đang gọi món";
+        if (hasActiveOrder || tableStatus == TableStatus.SERVING || Boolean.FALSE.equals(table.getIsAvailable())) return "đang đặt";
         return "trống";
     }
 
@@ -334,17 +346,23 @@ public class TableQueryService {
     public TableListItemResponse toListItem(TableEntity t) {
         List<Order> orders = orderRepository.findByTableId(t.getId());
         java.math.BigDecimal totalAmount = java.math.BigDecimal.ZERO;
-        String status = getDisplayStatus(t);
         Long activeOrderId = null;
+        int pendingQuantity = 0;
+        int preparingQuantity = 0;
+        int readyQuantity = 0;
         for (Order order : orders) {
             if (isActiveOrder(order)) {
                 activeOrderId = order.getId();
                 List<OrderItem> orderItems = orderItemRepository.findByOrderId(order.getId());
                 for (OrderItem item : orderItems) {
                     totalAmount = totalAmount.add(item.getMenuItem().getPrice().multiply(new java.math.BigDecimal(item.getEffectiveQuantity())));
+                    pendingQuantity += item.getPendingQuantity() == null ? 0 : item.getPendingQuantity();
+                    preparingQuantity += item.getPreparingQuantity() == null ? 0 : item.getPreparingQuantity();
+                    readyQuantity += item.getCompletedQuantity() == null ? 0 : item.getCompletedQuantity();
                 }
             }
         }
+        String status = getDisplayStatus(t, pendingQuantity, preparingQuantity, readyQuantity, activeOrderId != null);
         return TableListItemResponse.builder()
                 .id(t.getId())
                 .name(t.getName())

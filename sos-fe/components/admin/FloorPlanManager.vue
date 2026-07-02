@@ -56,13 +56,25 @@ const syncing = ref(false);
 const dragging = ref<{ id: string; offsetX: number; offsetY: number } | null>(null);
 const canvasRef = ref<HTMLElement | null>(null);
 
-const visibleTables = computed(() =>
-  normalizeStandardTables(tables.value).map((table: any) => ({
-    ...table,
-    tableNumber: getStandardTableNumber(table) || "",
-    displayStatus: getTableDisplayStatus(table),
-  })),
-);
+const visibleTables = computed(() => {
+  const normalized = normalizeStandardTables(tables.value);
+  const normalizedIds = new Set(normalized.map((table: any) => String(table.id)));
+  const fallbackTables = tables.value
+    .filter((table: any) => table?.id && !normalizedIds.has(String(table.id)))
+    .sort((a: any, b: any) => String(a.name || a.id).localeCompare(String(b.name || b.id), "vi", { numeric: true }));
+
+  return [...normalized, ...fallbackTables].map((table: any, index: number) => {
+    const tableNumber = getStandardTableNumber(table) || index + 1;
+    const position = getDefaultTablePosition(tableNumber);
+    return {
+      ...table,
+      tableNumber,
+      posX: table.posX || position.posX,
+      posY: table.posY || position.posY,
+      displayStatus: getTableDisplayStatus(table),
+    };
+  });
+});
 
 const load = async () => {
   tables.value = await TableApi.list();
@@ -85,20 +97,19 @@ const syncDefaultTables = async (showToast = false) => {
 
     for (const tableNumber of STANDARD_TABLE_NUMBERS) {
       const position = getDefaultTablePosition(tableNumber);
-      const body = {
+      const baseBody = {
         name: getDefaultTableName(tableNumber),
         capacity: 4,
         areaId: DEFAULT_TABLE_AREA_ID,
         posX: position.posX,
         posY: position.posY,
-        tableStatus: "EMPTY",
       };
       const table = standardTables.get(tableNumber);
 
       if (table) {
-        await TableApi.update(String(table.id), body);
+        await TableApi.update(String(table.id), baseBody);
       } else {
-        await TableApi.create(body);
+        await TableApi.create({ ...baseBody, tableStatus: "EMPTY" });
       }
     }
 

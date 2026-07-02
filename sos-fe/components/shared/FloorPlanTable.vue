@@ -2,7 +2,7 @@
   <button
     type="button"
     class="floor-table group"
-    :class="{ 'floor-table--readonly': readonly }"
+    :class="[{ 'floor-table--readonly': readonly }, statusClass]"
     @click="$emit('select')"
   >
     <span class="chair chair-top chair-a" />
@@ -21,7 +21,9 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { computed } from "vue";
+
+const props = defineProps<{
   number: number | string
   status?: string
   readonly?: boolean
@@ -30,6 +32,17 @@ defineProps<{
 defineEmits<{
   select: []
 }>()
+
+const statusClass = computed(() => {
+  const status = String(props.status || "Trống").toLowerCase();
+  if (status.includes("dọn")) return "floor-table--cleaning";
+  if (status.includes("thanh toán")) return "floor-table--payment";
+  if (status.includes("sẵn sàng")) return "floor-table--ready";
+  if (status.includes("chờ bếp")) return "floor-table--kitchen";
+  if (status.includes("gọi món")) return "floor-table--ordering";
+  if (status.includes("khách") || status.includes("đang đặt") || status.includes("phục vụ")) return "floor-table--occupied";
+  return "floor-table--empty";
+});
 </script>
 
 <style scoped>
@@ -62,6 +75,48 @@ defineEmits<{
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   color: #111827;
   transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.floor-table--empty .table-surface {
+  border-color: rgba(148, 163, 184, 0.95);
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 58%, #e5e7eb 100%);
+  color: #111827;
+}
+
+.floor-table--occupied .table-surface {
+  border-color: rgba(59, 130, 246, 0.95);
+  background: linear-gradient(145deg, #dbeafe 0%, #93c5fd 64%, #60a5fa 100%);
+  color: #0f172a;
+}
+
+.floor-table--ordering .table-surface {
+  border-color: rgba(245, 158, 11, 0.95);
+  background: linear-gradient(145deg, #fef3c7 0%, #fbbf24 64%, #f59e0b 100%);
+  color: #451a03;
+}
+
+.floor-table--kitchen .table-surface {
+  border-color: rgba(249, 115, 22, 0.95);
+  background: linear-gradient(145deg, #ffedd5 0%, #fb923c 64%, #ea580c 100%);
+  color: #431407;
+}
+
+.floor-table--ready .table-surface {
+  border-color: rgba(16, 185, 129, 0.95);
+  background: linear-gradient(145deg, #d1fae5 0%, #34d399 64%, #059669 100%);
+  color: #022c22;
+}
+
+.floor-table--payment .table-surface {
+  border-color: rgba(139, 92, 246, 0.95);
+  background: linear-gradient(145deg, #ede9fe 0%, #a78bfa 64%, #7c3aed 100%);
+  color: #1e1b4b;
+}
+
+.floor-table--cleaning .table-surface {
+  border-color: rgba(244, 63, 94, 0.95);
+  background: linear-gradient(145deg, #ffe4e6 0%, #fb7185 64%, #e11d48 100%);
+  color: #4c0519;
 }
 
 .floor-table:hover .table-surface {
