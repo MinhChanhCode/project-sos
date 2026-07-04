@@ -28,7 +28,14 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.authorizeHttpRequests(request -> {
             request
-                    .requestMatchers("/auth/login", "/auth/introspect", "/health/**", "/health").permitAll()
+                    .requestMatchers(
+                            "/api/auth/login",
+                            "/api/auth/introspect",
+                            "/auth/login",
+                            "/auth/introspect",
+                            "/health/**",
+                            "/health"
+                    ).permitAll()
                     .requestMatchers("/ws/**", "/ws").permitAll()
                     // Customer public APIs
                     .requestMatchers(HttpMethod.GET, "/api/v1/menu-items/**").permitAll()

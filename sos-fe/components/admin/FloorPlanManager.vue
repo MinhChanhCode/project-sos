@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-4">
     <div class="relative flex items-center justify-center">
-      <UButton size="lg" color="green" :loading="syncing" @click="addTable">
+      <UButton size="lg" color="green" :loading="syncing || loading" @click="addTable">
         <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
         Thêm bàn
       </UButton>
-      <UButton class="absolute right-0" size="sm" variant="outline" :loading="saving" @click="savePositions">
+      <UButton class="absolute right-0" size="sm" variant="outline" :loading="saving" :disabled="!visibleTables.length" @click="savePositions">
         Lưu vị trí
       </UButton>
     </div>
@@ -27,9 +27,18 @@
         >
           <SharedFloorPlanTable :number="table.tableNumber" :status="table.displayStatus" />
         </div>
-        <p v-if="!visibleTables.length" class="absolute inset-0 flex items-center justify-center text-gray-400">
-          Chưa có bàn trong sơ đồ
-        </p>
+        <div v-if="loading" class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-slate-300">
+          Đang tải bàn từ database...
+        </div>
+        <div v-else-if="loadError" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-sm text-rose-200">
+          <p class="font-semibold">Không tải được sơ đồ bàn</p>
+          <p class="max-w-md text-slate-300">{{ loadError }}</p>
+          <UButton size="sm" variant="outline" color="green" @click="load">Tải lại</UButton>
+        </div>
+        <div v-else-if="!visibleTables.length" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center text-sm text-slate-300">
+          <p class="font-semibold">Database chưa có bàn nào</p>
+          <p>Bấm “Thêm bàn” để tạo bàn thật và lưu vào database.</p>
+        </div>
       </div>
     </div>
   </div>
@@ -41,8 +50,6 @@ import { useNuxtApp } from "nuxt/app";
 import { TableApi } from "~/api-service/TableApi";
 import { getTableDisplayStatus } from "~/utils/tableStatus";
 import {
-  DEFAULT_TABLE_AREA_ID,
-  STANDARD_TABLE_NUMBERS,
   getDefaultTableName,
   getDefaultTablePosition,
   getStandardTableNumber,
@@ -50,6 +57,8 @@ import {
 } from "~/utils/tableLimits";
 
 const tables = ref<any[]>([]);
+const loading = ref(false);
+const loadError = ref("");
 const saving = ref(false);
 const syncing = ref(false);
 
@@ -77,48 +86,16 @@ const visibleTables = computed(() => {
 });
 
 const load = async () => {
-  tables.value = await TableApi.list();
-};
-
-const syncDefaultTables = async (showToast = false) => {
-  syncing.value = true;
+  loading.value = true;
+  loadError.value = "";
   try {
     const list = await TableApi.list();
-    const standardTables = new Map<number, any>();
-
-    (Array.isArray(list) ? list : [])
-      .sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)))
-      .forEach((table: any) => {
-        const tableNumber = getStandardTableNumber(table);
-        if (tableNumber && !standardTables.has(tableNumber)) {
-          standardTables.set(tableNumber, table);
-        }
-      });
-
-    for (const tableNumber of STANDARD_TABLE_NUMBERS) {
-      const position = getDefaultTablePosition(tableNumber);
-      const baseBody = {
-        name: getDefaultTableName(tableNumber),
-        capacity: 4,
-        areaId: DEFAULT_TABLE_AREA_ID,
-        posX: position.posX,
-        posY: position.posY,
-      };
-      const table = standardTables.get(tableNumber);
-
-      if (table) {
-        await TableApi.update(String(table.id), baseBody);
-      } else {
-        await TableApi.create({ ...baseBody, tableStatus: "EMPTY" });
-      }
-    }
-
-    await load();
-    if (showToast) (useNuxtApp() as any).$toast?.success?.("Đã đồng bộ 20 bàn mặc định");
+    tables.value = Array.isArray(list) ? list : [];
   } catch (e: any) {
-    (useNuxtApp() as any).$toast?.error?.(e?.message || "Không thể đồng bộ bàn");
+    loadError.value = e?.message || "Không thể tải danh sách bàn từ backend";
+    tables.value = [];
   } finally {
-    syncing.value = false;
+    loading.value = false;
   }
 };
 
@@ -137,7 +114,6 @@ const addTable = async () => {
     await TableApi.create({
       name: getDefaultTableName(tableNumber),
       capacity: 4,
-      areaId: DEFAULT_TABLE_AREA_ID,
       posX: position.posX,
       posY: position.posY,
       tableStatus: "EMPTY",
@@ -179,7 +155,9 @@ const savePositions = async () => {
   saving.value = true;
   try {
     await TableApi.updatePositions(
-      visibleTables.value.map((t) => ({ id: t.id, posX: t.posX || 0, posY: t.posY || 0 }))
+      visibleTables.value
+        .filter((t) => t.id)
+        .map((t) => ({ id: t.id, posX: Math.round(Number(t.posX || 0)), posY: Math.round(Number(t.posY || 0)) }))
     );
     (useNuxtApp() as any).$toast?.success?.("Đã lưu vị trí bàn");
   } catch (e: any) {
@@ -191,9 +169,6 @@ const savePositions = async () => {
 
 onMounted(async () => {
   await load();
-  if (visibleTables.value.length < STANDARD_TABLE_NUMBERS.length) {
-    await syncDefaultTables();
-  }
   const nuxt = useNuxtApp() as any;
   nuxt?.$realtime?.subscribe?.("/topic/management/tables", (msg: any) => {
     if (msg?.type === "TABLE_STATUS_CHANGED") load();
