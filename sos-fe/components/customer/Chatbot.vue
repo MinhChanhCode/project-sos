@@ -30,6 +30,20 @@
         </div>
         <p v-if="loading" class="text-gray-400 text-xs">Đang suy nghĩ...</p>
       </div>
+      <div class="mb-3 flex gap-2 overflow-x-auto pb-1">
+        <UButton
+          v-for="question in quickQuestions"
+          :key="question"
+          size="xs"
+          variant="soft"
+          color="orange"
+          class="shrink-0"
+          :disabled="loading"
+          @click="sendQuick(question)"
+        >
+          {{ question }}
+        </UButton>
+      </div>
       <form class="flex gap-2" @submit.prevent="send">
         <UInput v-model="input" placeholder="Hỏi về món ăn..." class="flex-1" />
         <UButton type="submit" :loading="loading" size="sm">Gửi</UButton>
@@ -48,10 +62,19 @@ const open = ref(false);
 const input = ref("");
 const loading = ref(false);
 const messages = ref<{ role: "user" | "bot"; text: string }[]>([
-  { role: "bot", text: "Xin chào! Tôi có thể gợi ý món theo sở thích, ngân sách hoặc combo. Bạn muốn gì?" },
+  { role: "bot", text: "Xin chào! Tôi có thể gợi ý món, trả lời FAQ nhà hàng, hỗ trợ gọi nhân viên và thanh toán. Bạn muốn gì?" },
 ]);
 const messagesRef = ref<HTMLElement | null>(null);
 const chatSessionId = ref(props.sessionId || "");
+const quickQuestions = [
+  "Combo cho 2 người dưới 200k",
+  "Món không cay",
+  "Tôi dị ứng hải sản",
+  "Gọi nhân viên",
+  "Tôi muốn thanh toán",
+  "Món của tôi tới đâu rồi?",
+  "Nhà hàng mở cửa lúc mấy giờ?",
+];
 
 onMounted(() => {
   if (!chatSessionId.value && process.client) {
@@ -62,6 +85,16 @@ onMounted(() => {
 const send = async () => {
   if (!input.value.trim() || loading.value) return;
   const text = input.value.trim();
+  await sendMessage(text);
+};
+
+const sendQuick = async (text: string) => {
+  if (loading.value) return;
+  open.value = true;
+  await sendMessage(text);
+};
+
+const sendMessage = async (text: string) => {
   messages.value.push({ role: "user", text });
   input.value = "";
   loading.value = true;

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -59,7 +60,7 @@ public class ChatService {
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(Map.class)
-                    .block();
+                    .block(Duration.ofSeconds(12));
             if (response != null && response.get("reply") != null) {
                 return response.get("reply").toString();
             }

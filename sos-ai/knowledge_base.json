@@ -1,0 +1,72 @@
+[
+  {
+    "question": "Nhà hàng mở cửa lúc mấy giờ?",
+    "answer": "Nhà hàng mở cửa từ 8:00 đến 22:00 mỗi ngày. Nếu bạn cần hỗ trợ ngoài giờ, hãy nhắn nhân viên trên màn hình đặt món.",
+    "tags": ["giờ mở cửa", "thời gian", "open"]
+  },
+  {
+    "question": "Tôi muốn gọi nhân viên thì làm thế nào?",
+    "answer": "Bạn hãy bấm nút Nhắn nhân viên hoặc Gọi dịch vụ ở góc dưới màn hình. Nhân viên sẽ nhận thông báo theo đúng bàn của bạn.",
+    "tags": ["gọi nhân viên", "phục vụ", "hỗ trợ"]
+  },
+  {
+    "question": "Tôi muốn thanh toán thì làm sao?",
+    "answer": "Bạn bấm Yêu cầu thanh toán để xem bill chi tiết và QR thanh toán demo. Sau khi thanh toán, nhân viên sẽ xác nhận trên hệ thống.",
+    "tags": ["thanh toán", "bill", "qr", "chuyển khoản"]
+  },
+  {
+    "question": "Có thanh toán chuyển khoản hoặc QR không?",
+    "answer": "Có. Bill thanh toán có QR demo gồm mã hóa đơn, số tiền và nội dung chuyển khoản. Nếu cần xác nhận, hãy nhắn nhân viên.",
+    "tags": ["qr thanh toán", "chuyển khoản", "hóa đơn"]
+  },
+  {
+    "question": "Có xuất hóa đơn không?",
+    "answer": "Bạn có thể yêu cầu nhân viên hỗ trợ xuất hóa đơn. Trên hệ thống, hóa đơn/bill có danh sách món, số lượng, đơn giá và tổng tiền.",
+    "tags": ["xuất hóa đơn", "invoice", "bill"]
+  },
+  {
+    "question": "Có món chay không?",
+    "answer": "Có. Bạn có thể hỏi tôi món chay, món thanh nhẹ hoặc món không cay. Tôi sẽ lọc theo menu còn món hiện tại.",
+    "tags": ["món chay", "vegetarian", "ăn chay"]
+  },
+  {
+    "question": "Có món không cay không?",
+    "answer": "Có. Bạn hãy nói ngân sách hoặc số người, tôi sẽ gợi ý các món không cay hoặc cay nhẹ phù hợp.",
+    "tags": ["không cay", "ít cay", "trẻ em"]
+  },
+  {
+    "question": "Tôi bị dị ứng thì hỏi AI được không?",
+    "answer": "Được. Bạn hãy nói rõ món cần tránh như hải sản, sữa, trứng, bò hoặc gà. Tôi sẽ ưu tiên gợi ý món phù hợp và nhắc bạn xác nhận lại với nhân viên.",
+    "tags": ["dị ứng", "allergy", "tránh món"]
+  },
+  {
+    "question": "Món hết hàng thì có đặt được không?",
+    "answer": "Món hết hàng vẫn có thể hiển thị trong menu nhưng hệ thống sẽ không cho đặt. Bạn có thể hỏi tôi món thay thế tương tự.",
+    "tags": ["hết món", "hết hàng", "không đặt được"]
+  },
+  {
+    "question": "Tôi muốn hủy hoặc đổi món thì sao?",
+    "answer": "Nếu món chưa được bếp xử lý, hãy nhắn nhân viên ngay để được hỗ trợ hủy hoặc đổi món. Khi món đã chế biến, nhà hàng có thể không hỗ trợ hủy.",
+    "tags": ["hủy món", "đổi món", "cancel"]
+  },
+  {
+    "question": "Món của tôi tới đâu rồi?",
+    "answer": "Bạn có thể xem trạng thái món trên màn hình đặt món. Nếu thấy chờ lâu, hãy bấm Nhắn nhân viên để nhân viên kiểm tra với bếp.",
+    "tags": ["trạng thái đơn", "món tới đâu", "chờ món"]
+  },
+  {
+    "question": "Làm sao xem giỏ hàng?",
+    "answer": "Bạn bấm nút Xem giỏ hàng ở cuối màn hình để xem món đã chọn, xóa món, kiểm tra tổng tiền và gửi order.",
+    "tags": ["giỏ hàng", "cart", "xem món"]
+  },
+  {
+    "question": "Có phí dịch vụ không?",
+    "answer": "Nếu có phí dịch vụ hoặc giảm giá, bill sẽ hiển thị rõ trước khi thanh toán. Bạn có thể hỏi nhân viên để xác nhận thêm.",
+    "tags": ["phí dịch vụ", "giảm giá", "service fee"]
+  },
+  {
+    "question": "Tôi muốn đánh giá sau bữa ăn",
+    "answer": "Sau khi dùng bữa, bạn có thể gửi đánh giá trên màn hình khách hàng. Hệ thống sẽ phân tích cảm xúc để nhà hàng cải thiện chất lượng.",
+    "tags": ["đánh giá", "review", "phản hồi"]
+  }
+]

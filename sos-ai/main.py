@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import os
 import re
+import json
 from collections import Counter
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI
@@ -74,6 +76,19 @@ class MenuSyncRequest(BaseModel):
 
 
 SEARCH_INDEX: list[dict] = []
+KNOWLEDGE_BASE_PATH = Path(__file__).with_name("knowledge_base.json")
+
+
+def load_knowledge_base() -> list[dict]:
+    try:
+        with KNOWLEDGE_BASE_PATH.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+KNOWLEDGE_BASE = load_knowledge_base()
 
 
 def as_text(value: object) -> str:
@@ -105,6 +120,10 @@ def item_text(item: dict) -> str:
     return normalize(" ".join(as_text(item.get(field)) for field in fields))
 
 
+def faq_text(item: dict) -> str:
+    return normalize(" ".join(as_text(item.get(field)) for field in ["question", "answer", "tags"]))
+
+
 def tokenize(text: str) -> list[str]:
     return [token for token in re.split(r"[^0-9a-zA-ZÀ-ỹ]+", normalize(text)) if len(token) > 1]
 
@@ -120,6 +139,73 @@ def rebuild_search_index() -> int:
         for item in MENU_ITEMS
     ]
     return sum(sum(row["tokens"].values()) for row in SEARCH_INDEX)
+
+
+def detect_intent(message: str) -> str:
+    lower = normalize(message)
+    if any(term in lower for term in ["thanh toán", "bill", "hóa đơn", "qr thanh toán", "chuyển khoản"]):
+        return "PAYMENT"
+    if any(term in lower for term in ["gọi nhân viên", "nhân viên", "phục vụ", "hỗ trợ", "gọi phục vụ"]):
+        return "CALL_STAFF"
+    if any(term in lower for term in ["giỏ hàng", "xóa món", "thêm món", "đặt món", "order"]):
+        return "CART_HELP"
+    if any(term in lower for term in ["tới đâu", "làm xong", "món của tôi", "đơn của tôi", "trạng thái đơn"]):
+        return "ORDER_STATUS"
+    if any(term in lower for term in ["mở cửa", "giờ", "địa chỉ", "wifi", "xuất hóa đơn", "hủy món", "đổi món", "phí dịch vụ"]):
+        return "FAQ"
+    if any(term in lower for term in ["món", "ăn", "uống", "combo", "cay", "chay", "dị ứng", "ngân sách", "người"]):
+        return "MENU_RECOMMENDATION"
+    if any(term in lower for term in ["bitcoin", "chứng khoán", "code", "lập trình", "chính trị", "bóng đá", "thời tiết"]):
+        return "OUT_OF_SCOPE"
+    return "FAQ"
+
+
+def format_money(value: object) -> str:
+    price = item_price({"price": value})
+    return f"{int(price):,}đ" if price else "chưa cập nhật giá"
+
+
+def build_menu_context(items: list[dict], limit: int = 80) -> str:
+    lines = []
+    for item in available_items(items)[:limit]:
+        fields = [
+            f"Tên: {item.get('name')}",
+            f"Giá: {format_money(item.get('promotionalPrice') or item.get('price'))}",
+            f"Danh mục: {item.get('categoryName') or item.get('type') or 'khác'}",
+            f"Trạng thái: {'còn món' if item.get('isAvailable', True) is not False else 'hết món'}",
+        ]
+        optional_fields = [
+            ("Mô tả", item.get("description")),
+            ("Khẩu vị", item.get("tasteTags")),
+            ("Độ cay", item.get("spicyLevel")),
+            ("Nguyên liệu", item.get("ingredients")),
+            ("Dị ứng", item.get("allergens")),
+            ("Phù hợp", item.get("suitableFor")),
+            ("Gợi ý kèm", item.get("pairing")),
+            ("Thời gian chuẩn bị", f"{item.get('prepTimeMinutes')} phút" if item.get("prepTimeMinutes") else None),
+        ]
+        fields.extend(f"{label}: {value}" for label, value in optional_fields if value not in (None, ""))
+        lines.append(" | ".join(fields))
+    return "\n".join(f"- {line}" for line in lines)
+
+
+def build_faq_context() -> str:
+    return "\n".join(
+        f"- Hỏi: {item.get('question')}\n  Đáp: {item.get('answer')}"
+        for item in KNOWLEDGE_BASE
+    )
+
+
+def match_faq(message: str) -> Optional[dict]:
+    tokens = set(tokenize(message))
+    best_score = 0
+    best_item = None
+    for item in KNOWLEDGE_BASE:
+        score = sum(1 for token in tokens if token in faq_text(item))
+        if score > best_score:
+            best_score = score
+            best_item = item
+    return best_item if best_score >= 2 else None
 
 
 def extract_budget(text: str) -> Optional[int]:
@@ -267,6 +353,20 @@ def build_combo(message: str, items: list[dict]) -> list[dict]:
 
 def build_rag_reply(message: str) -> str:
     lower = normalize(message)
+    intent = detect_intent(message)
+    if intent == "OUT_OF_SCOPE":
+        return "Tôi là trợ lý AI của nhà hàng ProjectSOS. Tôi có thể giúp bạn chọn món, xem hướng dẫn đặt món, gọi nhân viên hoặc hỗ trợ thanh toán."
+    if intent in {"FAQ", "PAYMENT", "CALL_STAFF", "CART_HELP", "ORDER_STATUS"}:
+        faq = match_faq(message)
+        if faq:
+            return str(faq.get("answer"))
+        if intent == "ORDER_STATUS":
+            return "Bạn có thể xem trạng thái món ngay trên màn hình đặt món. Nếu món chờ lâu, hãy bấm Nhắn nhân viên hoặc Gọi dịch vụ để nhân viên kiểm tra giúp bạn."
+        if intent == "CALL_STAFF":
+            return "Bạn hãy bấm nút Nhắn nhân viên hoặc Gọi dịch vụ ở góc dưới màn hình. Nhân viên sẽ nhận thông báo theo bàn của bạn."
+        if intent == "PAYMENT":
+            return "Bạn có thể bấm Yêu cầu thanh toán để xem bill và QR thanh toán demo. Nhân viên sẽ xác nhận sau khi bạn thanh toán."
+
     wants_combo = any(term in lower for term in ["combo", "set", "đi nhóm", "di nhom", "mấy người", "người"])
     matched = build_combo(message, MENU_ITEMS) if wants_combo else rag_search(message, MENU_ITEMS)
     if not matched:
@@ -306,20 +406,39 @@ def analyze_sentiment(text: str) -> SentimentResponse:
     return SentimentResponse(sentiment="NEUTRAL", confidence=0.7)
 
 
-def call_openai(message: str, context: str) -> Optional[str]:
+def call_openai(message: str, context: str, intent: str) -> Optional[str]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key)
+        system_prompt = f"""
+Bạn là trợ lý AI nhà hàng của ProjectSOS.
+Nhiệm vụ: tư vấn món, combo, khẩu vị, ngân sách, dị ứng, hướng dẫn đặt món, gọi nhân viên, thanh toán và trả lời FAQ nhà hàng.
+Luôn trả lời bằng tiếng Việt, thân thiện, ngắn gọn, dễ hiểu.
+Chỉ trả lời trong phạm vi nhà hàng, menu, order, giỏ hàng, thanh toán và dịch vụ.
+Nếu khách hỏi ngoài phạm vi nhà hàng, hãy lịch sự nói bạn chỉ hỗ trợ dịch vụ nhà hàng và gợi ý khách chọn món/gọi nhân viên.
+Không bịa món không có trong menu. Chỉ gợi ý món còn hoạt động/còn món trong context.
+Nếu thiếu thông tin như ngân sách, số người, mức cay hoặc dị ứng, hãy hỏi lại 1 câu ngắn.
+Nếu không chắc, hãy khuyên khách bấm Nhắn nhân viên.
+
+Intent hiện tại: {intent}
+
+MENU THẬT:
+{context}
+
+FAQ NHÀ HÀNG:
+{build_faq_context()}
+""".strip()
         resp = client.chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=[
-                {"role": "system", "content": f"Bạn là tư vấn món ăn nhà hàng Việt Nam. Menu:\n{context}"},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message},
             ],
             max_tokens=500,
+            temperature=0.35,
         )
         return resp.choices[0].message.content
     except Exception:
@@ -334,8 +453,9 @@ def health():
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     session_id = req.session_id or "default"
-    context = "\n".join(f"- {m['name']}: {m['price']}đ" for m in MENU_ITEMS)
-    reply = call_openai(req.message, context) or build_rag_reply(req.message)
+    intent = detect_intent(req.message)
+    context = build_menu_context(MENU_ITEMS)
+    reply = call_openai(req.message, context, intent) or build_rag_reply(req.message)
     return ChatResponse(session_id=session_id, reply=reply)
 
 
