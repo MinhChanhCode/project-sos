@@ -249,7 +249,15 @@
         </UCard>
       </UModal>
 
-      <CustomerChatbot :session-id="sessionId" :hidden="floatingActionsHidden" />
+      <CustomerChatbot
+        :session-id="sessionId"
+        :table-id="tableId || ''"
+        :table-number="tableNumber"
+        :customer-name="customerName"
+        :hidden="floatingActionsHidden"
+        @add-to-cart="addToCart"
+        @request-payment="requestPayment"
+      />
       <CustomerStaffChat
         :table-id="tableId || ''"
         :table-name="tableName"

@@ -79,7 +79,7 @@ export const staffChatApi = {
 };
 
 export const chatApi = {
-  send: (body: { sessionId?: string; message: string }) =>
+  send: (body: { sessionId?: string; tableId?: string; tableNumber?: string; customerName?: string; orderId?: number; message: string }) =>
     baseApiFetch<any>("/api/v1/chat", { method: "POST", body, skipAuth: true }).then(unwrap),
   history: (sessionId: string) =>
     baseApiFetch<any>(`/api/v1/chat/history/${sessionId}`, { skipAuth: true }).then(unwrap),

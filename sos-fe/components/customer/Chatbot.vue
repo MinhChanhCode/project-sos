@@ -30,6 +30,21 @@
         </div>
         <p v-if="loading" class="text-gray-400 text-xs">Đang suy nghĩ...</p>
       </div>
+      <div v-if="lastSuggestedItems.length" class="mb-3 space-y-2">
+        <button
+          v-for="item in lastSuggestedItems"
+          :key="item.id"
+          type="button"
+          class="flex w-full items-center justify-between rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-left text-xs text-gray-900 transition hover:bg-orange-100 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-white"
+          @click="emit('addToCart', normalizeSuggestedItem(item))"
+        >
+          <span class="min-w-0">
+            <span class="block truncate font-semibold">{{ item.name }}</span>
+            <span class="text-orange-600 dark:text-orange-300">{{ formatMoney(Number(item.promotionalPrice || item.price || 0)) }}</span>
+          </span>
+          <span class="ml-2 rounded-full bg-orange-500 px-2 py-1 font-semibold text-white">Thêm</span>
+        </button>
+      </div>
       <div class="mb-3 flex gap-2 overflow-x-auto pb-1">
         <UButton
           v-for="question in quickQuestions"
@@ -56,7 +71,17 @@
 import { chatApi } from "~/api-service/ExtendedApi";
 import { nextTick, onMounted, ref } from "vue";
 
-const props = defineProps<{ sessionId?: string; hidden?: boolean }>();
+const props = defineProps<{
+  sessionId?: string;
+  tableId?: string;
+  tableNumber?: string;
+  customerName?: string;
+  hidden?: boolean;
+}>();
+const emit = defineEmits<{
+  addToCart: [item: any];
+  requestPayment: [];
+}>();
 
 const open = ref(false);
 const input = ref("");
@@ -66,6 +91,7 @@ const messages = ref<{ role: "user" | "bot"; text: string }[]>([
 ]);
 const messagesRef = ref<HTMLElement | null>(null);
 const chatSessionId = ref(props.sessionId || "");
+const lastSuggestedItems = ref<any[]>([]);
 const quickQuestions = [
   "Combo cho 2 người dưới 200k",
   "Món không cay",
@@ -99,8 +125,18 @@ const sendMessage = async (text: string) => {
   input.value = "";
   loading.value = true;
   try {
-    const res = await chatApi.send({ sessionId: chatSessionId.value, message: text }) as { reply?: string };
+    const res = await chatApi.send({
+      sessionId: chatSessionId.value,
+      tableId: props.tableId,
+      tableNumber: props.tableNumber,
+      customerName: props.customerName,
+      message: text,
+    }) as { reply?: string; suggestedItems?: any[]; actions?: any[] };
+    lastSuggestedItems.value = Array.isArray(res.suggestedItems) ? res.suggestedItems : [];
     messages.value.push({ role: "bot", text: res.reply || "Xin lỗi, tôi chưa trả lời được." });
+    if (Array.isArray(res.actions) && res.actions.some((action) => action?.type === "REQUEST_PAYMENT")) {
+      emit("requestPayment");
+    }
     nextTick(() => messagesRef.value?.scrollTo({ top: 9999, behavior: "smooth" }));
   } catch (e: any) {
     messages.value.push({ role: "bot", text: e.message || "Lỗi kết nối chatbot" });
@@ -108,4 +144,24 @@ const sendMessage = async (text: string) => {
     loading.value = false;
   }
 };
+
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value || 0);
+
+const normalizeSuggestedItem = (item: any) => ({
+  id: Number(item.id),
+  name: String(item.name || ""),
+  price: Number(item.promotionalPrice || item.price || 0),
+  originalPrice: Number(item.originalPrice || item.price || 0),
+  promotionalPrice: item.promotionalPrice,
+  imageUrl: String(item.imageUrl || ""),
+  categoryId: String(item.categoryId || ""),
+  description: String(item.description || ""),
+  badges: [],
+  rating: Number(item.rating || 0),
+  prepTime: item.prepTimeMinutes ? `${item.prepTimeMinutes} phút` : "",
+  isAvailable: item.isAvailable !== false,
+  orders: Number(item.orders || 0),
+  quantity: 1,
+});
 </script>

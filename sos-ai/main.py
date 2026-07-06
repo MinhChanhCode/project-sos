@@ -9,7 +9,7 @@ import re
 import json
 from collections import Counter
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,12 +54,22 @@ MENU_ITEMS: list[dict] = [
 
 class ChatRequest(BaseModel):
     session_id: Optional[str] = None
+    table_id: Optional[str] = None
+    table_number: Optional[str] = None
+    customer_name: Optional[str] = None
+    order_id: Optional[int] = None
     message: str
+    context: dict[str, Any] = Field(default_factory=dict)
 
 
 class ChatResponse(BaseModel):
     session_id: str
     reply: str
+    intent: str = "FAQ"
+    suggestedItems: list[dict] = Field(default_factory=list)
+    actions: list[dict] = Field(default_factory=list)
+    usedTools: list[str] = Field(default_factory=list)
+    memoryUpdated: bool = False
 
 
 class SentimentRequest(BaseModel):
@@ -77,6 +87,8 @@ class MenuSyncRequest(BaseModel):
 
 SEARCH_INDEX: list[dict] = []
 KNOWLEDGE_BASE_PATH = Path(__file__).with_name("knowledge_base.json")
+CONVERSATION_MEMORY: dict[str, dict[str, Any]] = {}
+MAX_MEMORY_MESSAGES = 12
 
 
 def load_knowledge_base() -> list[dict]:
@@ -144,7 +156,7 @@ def rebuild_search_index() -> int:
 def detect_intent(message: str) -> str:
     lower = normalize(message)
     if any(term in lower for term in ["thanh toán", "bill", "hóa đơn", "qr thanh toán", "chuyển khoản"]):
-        return "PAYMENT"
+        return "PAYMENT_HELP"
     if any(term in lower for term in ["gọi nhân viên", "nhân viên", "phục vụ", "hỗ trợ", "gọi phục vụ"]):
         return "CALL_STAFF"
     if any(term in lower for term in ["giỏ hàng", "xóa món", "thêm món", "đặt món", "order"]):
@@ -154,10 +166,176 @@ def detect_intent(message: str) -> str:
     if any(term in lower for term in ["mở cửa", "giờ", "địa chỉ", "wifi", "xuất hóa đơn", "hủy món", "đổi món", "phí dịch vụ"]):
         return "FAQ"
     if any(term in lower for term in ["món", "ăn", "uống", "combo", "cay", "chay", "dị ứng", "ngân sách", "người"]):
+        if any(term in lower for term in ["giá", "bao nhiêu", "mấy tiền", "duoi", "dưới"]):
+            return "MENU_PRICE"
+        if any(term in lower for term in ["còn", "hết", "còn không", "hết chưa"]):
+            return "MENU_AVAILABILITY"
+        if any(term in lower for term in ["bán chạy", "best seller", "ngon nhất", "món ngon"]):
+            return "BEST_SELLER"
+        if any(term in lower for term in ["khuyến mãi", "giảm giá", "promotion"]):
+            return "PROMOTION"
+        if "combo" in lower:
+            return "COMBO"
         return "MENU_RECOMMENDATION"
     if any(term in lower for term in ["bitcoin", "chứng khoán", "code", "lập trình", "chính trị", "bóng đá", "thời tiết"]):
         return "OUT_OF_SCOPE"
     return "FAQ"
+
+
+def get_context_menu(context: dict[str, Any]) -> list[dict]:
+    menu = context.get("menu")
+    if isinstance(menu, list) and menu:
+        return [item for item in menu if isinstance(item, dict)]
+    return MENU_ITEMS
+
+
+def get_memory(session_id: str) -> dict[str, Any]:
+    memory = CONVERSATION_MEMORY.setdefault(session_id, {
+        "messages": [],
+        "preferences": {},
+        "lastSuggestedItems": [],
+        "lastIntent": None,
+    })
+    return memory
+
+
+def update_memory(session_id: str, req: ChatRequest, intent: str, reply: str, suggested_items: list[dict]) -> bool:
+    memory = get_memory(session_id)
+    messages = memory.setdefault("messages", [])
+    messages.append({"role": "user", "content": req.message})
+    messages.append({"role": "assistant", "content": reply})
+    memory["messages"] = messages[-MAX_MEMORY_MESSAGES:]
+    memory["lastIntent"] = intent
+    if suggested_items:
+        memory["lastSuggestedItems"] = suggested_items[:5]
+    preferences = memory.setdefault("preferences", {})
+    allergies = allergy_terms(req.message)
+    if allergies:
+        preferences["allergies"] = sorted(set(preferences.get("allergies", []) + allergies))
+    budget = extract_budget(req.message)
+    if budget:
+        preferences["budget"] = budget
+    people = extract_people(req.message)
+    if people:
+        preferences["people"] = people
+    lower = normalize(req.message)
+    if "không cay" in lower:
+        preferences["spicy"] = "none"
+    elif "cay" in lower:
+        preferences["spicy"] = "spicy"
+    return True
+
+
+def memory_context(session_id: str) -> str:
+    memory = get_memory(session_id)
+    prefs = memory.get("preferences") or {}
+    last_items = memory.get("lastSuggestedItems") or []
+    lines = []
+    if prefs:
+        lines.append(f"Sở thích đã nhớ: {json.dumps(prefs, ensure_ascii=False)}")
+    if last_items:
+        lines.append("Món vừa gợi ý: " + ", ".join(as_text(item.get("name")) for item in last_items[:5]))
+    recent = memory.get("messages") or []
+    if recent:
+        lines.append("Hội thoại gần đây:")
+        for msg in recent[-6:]:
+            lines.append(f"- {msg.get('role')}: {msg.get('content')}")
+    return "\n".join(lines)
+
+
+def tool_get_table_context(req: ChatRequest) -> tuple[str, dict]:
+    table = req.context.get("table") or {}
+    table_number = req.table_number or req.context.get("tableNumber") or table.get("tableName") or table.get("name")
+    return "get_table_context", {
+        "tableId": req.table_id or req.context.get("tableId") or table.get("tableId"),
+        "tableNumber": table_number,
+        "customerName": req.customer_name or req.context.get("customerName"),
+        "status": table.get("status"),
+        "activeOrderId": table.get("activeOrderId"),
+        "sessionItems": table.get("sessionItems") or [],
+    }
+
+
+def tool_get_cart(req: ChatRequest) -> tuple[str, dict]:
+    return "get_cart", req.context.get("cart") or {"items": [], "totalItems": 0, "totalAmount": 0}
+
+
+def tool_get_order_status(req: ChatRequest) -> tuple[str, dict]:
+    table = req.context.get("table") or {}
+    orders = req.context.get("orders") or []
+    items = table.get("sessionItems") or []
+    return "get_order_status", {
+        "orders": orders,
+        "items": items,
+        "activeOrderId": table.get("activeOrderId"),
+        "tableStatus": table.get("status"),
+    }
+
+
+def tool_search_faq(message: str) -> tuple[str, dict]:
+    faq = match_faq(message)
+    return "search_faq", faq or {}
+
+
+def tool_search_menu(message: str, items: list[dict], intent: str, session_id: str) -> tuple[str, list[dict]]:
+    memory = get_memory(session_id)
+    last_items = memory.get("lastSuggestedItems") or []
+    lower = normalize(message)
+    if any(term in lower for term in ["món đó", "loại đó", "cái đó", "rẻ hơn", "ít cay hơn"]) and last_items:
+        if "rẻ hơn" in lower:
+            previous_prices = [item_price(item) for item in last_items if item_price(item) > 0]
+            if not previous_prices:
+                return "get_menu_items", rag_search(message, items)
+            limit_price = min(previous_prices)
+            matched = [item for item in available_items(items) if item_price(item) and item_price(item) < limit_price]
+            return "get_menu_items", sorted(matched, key=item_price)[:5]
+        return "get_menu_items", last_items[:5]
+    if intent in {"COMBO"}:
+        return "get_combo_items", build_combo(message, items)
+    if intent in {"BEST_SELLER"}:
+        ranked = sorted(available_items(items), key=lambda item: (item.get("orders") or item.get("rating") or 0), reverse=True)
+        return "get_best_sellers", ranked[:5] or rag_search(message, items)
+    if intent in {"PROMOTION"}:
+        promos = [item for item in available_items(items) if item.get("promotionalPrice")]
+        return "get_promotions", promos[:5]
+    return "get_menu_items", rag_search(message, items)
+
+
+def build_tool_plan(req: ChatRequest, intent: str) -> tuple[list[str], dict[str, Any]]:
+    items = get_context_menu(req.context)
+    used_tools: list[str] = []
+    tool_data: dict[str, Any] = {}
+
+    if intent in {"ORDER_STATUS"}:
+        name, data = tool_get_order_status(req)
+        used_tools.append(name)
+        tool_data[name] = data
+    elif intent in {"CART_HELP"}:
+        name, data = tool_get_cart(req)
+        used_tools.append(name)
+        tool_data[name] = data
+    elif intent in {"PAYMENT_HELP", "CALL_STAFF", "SERVICE_REQUEST"}:
+        for tool in [tool_get_table_context, tool_get_cart]:
+            name, data = tool(req)
+            used_tools.append(name)
+            tool_data[name] = data
+        name, data = tool_search_faq(req.message)
+        used_tools.append(name)
+        tool_data[name] = data
+    elif intent in {"FAQ"}:
+        name, data = tool_search_faq(req.message)
+        used_tools.append(name)
+        tool_data[name] = data
+    elif intent == "OUT_OF_SCOPE":
+        pass
+    else:
+        name, data = tool_search_menu(req.message, items, intent, req.session_id or "default")
+        used_tools.append(name)
+        tool_data[name] = data
+        table_name, table_data = tool_get_table_context(req)
+        used_tools.append(table_name)
+        tool_data[table_name] = table_data
+    return used_tools, tool_data
 
 
 def format_money(value: object) -> str:
@@ -406,7 +584,7 @@ def analyze_sentiment(text: str) -> SentimentResponse:
     return SentimentResponse(sentiment="NEUTRAL", confidence=0.7)
 
 
-def call_openai(message: str, context: str, intent: str) -> Optional[str]:
+def call_openai(message: str, context: str, intent: str, tool_data: dict[str, Any], session_id: str) -> Optional[str]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
@@ -425,8 +603,14 @@ Nếu không chắc, hãy khuyên khách bấm Nhắn nhân viên.
 
 Intent hiện tại: {intent}
 
-MENU THẬT:
+CONTEXT RAG / MENU LIÊN QUAN:
 {context}
+
+TOOL DATA THẬT:
+{json.dumps(tool_data, ensure_ascii=False, default=str)[:12000]}
+
+BỘ NHỚ HỘI THOẠI:
+{memory_context(session_id)}
 
 FAQ NHÀ HÀNG:
 {build_faq_context()}
@@ -445,6 +629,89 @@ FAQ NHÀ HÀNG:
         return None
 
 
+def summarize_order_status(data: dict) -> str:
+    items = data.get("items") or []
+    orders = data.get("orders") or []
+    if not items and not orders:
+        return "Hiện tại mình chưa thấy đơn đang xử lý cho bàn này. Nếu bạn vừa đặt món, vui lòng chờ vài giây hoặc nhắn nhân viên kiểm tra giúp."
+    pending = preparing = ready = served = 0
+    lines = []
+    for item in items:
+        name = item.get("menuItemName") or item.get("name") or "Món"
+        p = int(item.get("pendingQuantity") or 0)
+        pr = int(item.get("preparingQuantity") or 0)
+        r = int(item.get("completedQuantity") or 0)
+        s = int(item.get("servedQuantity") or 0)
+        pending += p
+        preparing += pr
+        ready += r
+        served += s
+        status_parts = []
+        if p:
+            status_parts.append(f"{p} chờ bếp")
+        if pr:
+            status_parts.append(f"{pr} đang chế biến")
+        if r:
+            status_parts.append(f"{r} sẵn sàng")
+        if s:
+            status_parts.append(f"{s} đã phục vụ")
+        if status_parts:
+            lines.append(f"- {name}: {', '.join(status_parts)}")
+    summary = f"Đơn của bạn hiện có {pending} món chờ bếp, {preparing} món đang chế biến, {ready} món sẵn sàng và {served} món đã phục vụ."
+    return "\n".join([summary, *lines[:6]])
+
+
+def summarize_cart(data: dict) -> str:
+    items = data.get("items") or []
+    if not items:
+        return "Giỏ hàng của bạn hiện đang trống. Bạn có thể chọn món trong menu rồi bấm thêm vào giỏ."
+    lines = ["Giỏ hàng hiện tại của bạn:"]
+    for item in items[:8]:
+        lines.append(f"- {item.get('name')}: x{item.get('quantity')} - {format_money(item.get('subtotal') or item.get('unitPrice'))}")
+    lines.append(f"Tổng cộng: {format_money(data.get('totalAmount'))}")
+    return "\n".join(lines)
+
+
+def build_actions(intent: str, suggested_items: list[dict]) -> list[dict]:
+    actions = []
+    for item in suggested_items[:3]:
+        if item.get("id") and item.get("isAvailable", True) is not False:
+            actions.append({
+                "type": "ADD_TO_CART",
+                "label": f"Thêm {item.get('name')} vào giỏ",
+                "menuItemId": item.get("id"),
+            })
+    if intent == "PAYMENT_HELP":
+        actions.append({"type": "REQUEST_PAYMENT", "label": "Yêu cầu thanh toán"})
+    if intent in {"CALL_STAFF", "SERVICE_REQUEST"}:
+        actions.append({"type": "CALL_STAFF", "label": "Nhắn nhân viên"})
+    return actions
+
+
+def build_tool_reply(req: ChatRequest, intent: str, tool_data: dict[str, Any], suggested_items: list[dict]) -> Optional[str]:
+    if intent == "OUT_OF_SCOPE":
+        return "Tôi là trợ lý AI của nhà hàng ProjectSOS. Tôi có thể giúp bạn chọn món, xem giỏ hàng, kiểm tra đơn, gọi nhân viên hoặc hỗ trợ thanh toán."
+    if intent == "ORDER_STATUS":
+        return summarize_order_status(tool_data.get("get_order_status") or {})
+    if intent == "CART_HELP" and any(term in normalize(req.message) for term in ["giỏ", "cart", "có gì"]):
+        return summarize_cart(tool_data.get("get_cart") or {})
+    if intent == "FAQ":
+        faq = tool_data.get("search_faq") or {}
+        if faq.get("answer"):
+            return str(faq.get("answer"))
+    if intent == "CALL_STAFF":
+        return "Bạn có thể bấm nút Nhắn nhân viên hoặc Gọi dịch vụ trên màn hình. Mình cũng khuyên bạn nhắn nhân viên để được hỗ trợ trực tiếp tại bàn."
+    if intent == "PAYMENT_HELP":
+        return "Bạn hãy bấm Yêu cầu thanh toán để xem bill và QR thanh toán. Nhân viên sẽ xác nhận sau khi bạn thanh toán."
+    if intent in {"MENU_AVAILABILITY", "MENU_PRICE"} and suggested_items:
+        lines = ["Mình tìm thấy các món phù hợp trong menu:"]
+        for item in suggested_items[:5]:
+            status = "còn món" if item.get("isAvailable", True) is not False else "hết món"
+            lines.append(f"- {item.get('name')} - {format_money(item.get('promotionalPrice') or item.get('price'))} ({status})")
+        return "\n".join(lines)
+    return None
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -453,10 +720,41 @@ def health():
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest):
     session_id = req.session_id or "default"
+    req.session_id = session_id
     intent = detect_intent(req.message)
-    context = build_menu_context(MENU_ITEMS)
-    reply = call_openai(req.message, context, intent) or build_rag_reply(req.message)
-    return ChatResponse(session_id=session_id, reply=reply)
+    used_tools, tool_data = build_tool_plan(req, intent)
+    suggested_items = []
+    for value in tool_data.values():
+        if isinstance(value, list):
+            suggested_items = [item for item in value if isinstance(item, dict)]
+            break
+
+    menu_context = build_menu_context(suggested_items or get_context_menu(req.context), limit=12)
+    deterministic_reply = build_tool_reply(req, intent, tool_data, suggested_items)
+    needs_llm = deterministic_reply is None or intent in {"MENU_RECOMMENDATION", "COMBO", "BEST_SELLER", "PROMOTION"}
+    reply = deterministic_reply
+    if needs_llm:
+        reply = call_openai(req.message, menu_context, intent, tool_data, session_id) or deterministic_reply
+    if not reply:
+        previous_menu = MENU_ITEMS
+        try:
+            if req.context.get("menu"):
+                globals()["MENU_ITEMS"] = get_context_menu(req.context)
+            reply = build_rag_reply(req.message)
+        finally:
+            globals()["MENU_ITEMS"] = previous_menu
+
+    actions = build_actions(intent, suggested_items)
+    memory_updated = update_memory(session_id, req, intent, reply, suggested_items)
+    return ChatResponse(
+        session_id=session_id,
+        reply=reply,
+        intent=intent,
+        suggestedItems=suggested_items[:5],
+        actions=actions,
+        usedTools=used_tools,
+        memoryUpdated=memory_updated,
+    )
 
 
 @app.post("/sentiment", response_model=SentimentResponse)

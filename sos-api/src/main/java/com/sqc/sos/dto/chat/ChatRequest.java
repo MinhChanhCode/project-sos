@@ -10,5 +10,9 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ChatRequest {
     String sessionId;
+    String tableId;
+    String tableNumber;
+    String customerName;
+    Long orderId;
     String message;
 }
