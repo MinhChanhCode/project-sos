@@ -40,7 +40,8 @@
         <div class="mt-4 flex items-end justify-between gap-4">
           <div class="text-sm">
             <div>Tạm tính: <b>{{ formatMoney(Number(invoice.subtotal || 0)) }}</b></div>
-            <div>Thuế: <b>{{ formatMoney(Number(invoice.tax || 0)) }}</b></div>
+            <div v-if="Number(invoice.discount || 0) > 0">Giảm giá: <b>{{ formatMoney(Number(invoice.discount || 0)) }}</b></div>
+            <div v-if="Number(invoice.serviceFee || 0) > 0">Phí dịch vụ: <b>{{ formatMoney(Number(invoice.serviceFee || 0)) }}</b></div>
             <div class="mt-1 text-base">Tổng: <b class="text-orange-600">{{ formatMoney(Number(invoice.total || 0)) }}</b></div>
           </div>
           <qrcode-vue :value="invoice.paymentQrPayload || ''" :size="112" level="M" render-as="svg" />

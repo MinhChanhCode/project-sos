@@ -117,7 +117,11 @@ public class RealtimeService {
         // Nếu món đã COMPLETED (dựa trên quantity), phát thêm kênh dành cho nhân viên phục vụ để biết món nào đã xong ở bàn nào
         if (item.getCompletedQuantity() != null && item.getCompletedQuantity() > 0) {
             String serverDest = "/topic/server/orders-ready";
-            messagingTemplate.convertAndSend(serverDest, payload);
+            Map<String, Object> readyPayload = new HashMap<>(payload);
+            readyPayload.put("status", "COMPLETED");
+            readyPayload.put("type", "ORDER_ITEM_READY");
+            readyPayload.put("completedQuantity", item.getCompletedQuantity());
+            messagingTemplate.convertAndSend(serverDest, readyPayload);
             log.info("Sent server READY notification: {} -> {}", serverDest, payload);
         }
     }

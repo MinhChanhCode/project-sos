@@ -26,6 +26,15 @@
           @mousedown="startDrag($event, table)"
         >
           <SharedFloorPlanTable :number="table.tableNumber" :status="table.displayStatus" />
+          <button
+            type="button"
+            class="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-200 shadow-lg transition hover:border-emerald-400 hover:text-emerald-300"
+            title="Chi tiết bàn"
+            @mousedown.stop
+            @click.stop="openTableDetail(table)"
+          >
+            <Icon name="lucide:settings-2" class="h-4 w-4" />
+          </button>
         </div>
         <div v-if="loading" class="absolute inset-0 flex items-center justify-center text-sm font-semibold text-slate-300">
           Đang tải bàn từ database...
@@ -41,6 +50,89 @@
         </div>
       </div>
     </div>
+
+    <UModal v-model="showDetail" :ui="{ width: 'max-w-2xl' }">
+      <UCard v-if="selectedTable">
+        <template #header>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h3 class="text-lg font-semibold">Bàn {{ selectedTable.tableNumber || selectedTable.name }}</h3>
+              <p class="text-sm text-slate-500">Chi tiết, trạng thái và thao tác nhanh</p>
+            </div>
+            <UBadge :color="selectedTable.displayStatus === 'Trống' ? 'gray' : 'green'" variant="soft">
+              {{ selectedTable.displayStatus || selectedTable.tableStatus || selectedTable.status || "Trống" }}
+            </UBadge>
+          </div>
+        </template>
+
+        <div class="space-y-5">
+          <div class="grid gap-3 md:grid-cols-2">
+            <UFormGroup label="Tên bàn">
+              <UInput v-model="tableForm.name" placeholder="Ví dụ: Bàn 1" />
+            </UFormGroup>
+            <UFormGroup label="Sức chứa">
+              <UInput v-model.number="tableForm.capacity" type="number" min="1" />
+            </UFormGroup>
+            <UFormGroup label="Trạng thái">
+              <select v-model="tableForm.tableStatus" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white">
+                <option value="EMPTY">Trống</option>
+                <option value="OCCUPIED">Có khách</option>
+                <option value="ORDERING">Đang gọi món</option>
+                <option value="WAITING_KITCHEN">Chờ bếp</option>
+                <option value="READY">Món sẵn sàng</option>
+                <option value="SERVING">Đang phục vụ</option>
+                <option value="WAITING_PAYMENT">Chờ thanh toán</option>
+                <option value="NEEDS_CLEANING">Cần dọn bàn</option>
+              </select>
+            </UFormGroup>
+            <div class="rounded-lg border border-slate-800 p-3 text-sm">
+              <div class="text-slate-400">Tổng tiền hiện tại</div>
+              <div class="mt-1 text-xl font-bold">{{ formatMoney(Number(selectedTableDetail?.totalAmount || selectedTable.totalAmount || 0)) }}</div>
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-slate-800">
+            <div class="flex items-center justify-between border-b border-slate-800 px-3 py-2">
+              <span class="text-sm font-semibold">Món/order đang hoạt động</span>
+              <UBadge color="blue" variant="soft">{{ selectedTableDetail?.sessionItems?.length || 0 }} món</UBadge>
+            </div>
+            <div class="max-h-56 overflow-y-auto divide-y divide-slate-800">
+              <div
+                v-for="item in selectedTableDetail?.sessionItems || []"
+                :key="item.id"
+                class="grid gap-2 px-3 py-2 text-sm md:grid-cols-[1fr_90px_90px_90px]"
+              >
+                <span class="font-medium">{{ item.menuItemName }}</span>
+                <span>Chờ: <b>{{ item.pendingQuantity || 0 }}</b></span>
+                <span>Sẵn: <b>{{ item.completedQuantity || 0 }}</b></span>
+                <span>Phục vụ: <b>{{ item.servedQuantity || 0 }}</b></span>
+              </div>
+              <p v-if="!(selectedTableDetail?.sessionItems || []).length" class="px-3 py-6 text-center text-sm text-slate-500">
+                Bàn này chưa có order đang xử lý
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <template #footer>
+          <div class="flex flex-wrap gap-2">
+            <UButton color="green" :loading="savingDetail" @click="saveTableDetail">
+              <Icon name="lucide:save" class="mr-1 h-4 w-4" />
+              Lưu bàn
+            </UButton>
+            <UButton variant="outline" color="orange" :loading="clearingTable" @click="clearSelectedTable">
+              <Icon name="lucide:broom" class="mr-1 h-4 w-4" />
+              Dọn bàn
+            </UButton>
+            <UButton variant="outline" color="red" :loading="deletingTable" @click="deleteSelectedTable">
+              <Icon name="lucide:trash-2" class="mr-1 h-4 w-4" />
+              Xóa bàn
+            </UButton>
+            <UButton class="ml-auto" variant="ghost" @click="showDetail = false">Đóng</UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
   </div>
 </template>
 
@@ -61,6 +153,13 @@ const loading = ref(false);
 const loadError = ref("");
 const saving = ref(false);
 const syncing = ref(false);
+const showDetail = ref(false);
+const selectedTable = ref<any | null>(null);
+const selectedTableDetail = ref<any | null>(null);
+const savingDetail = ref(false);
+const clearingTable = ref(false);
+const deletingTable = ref(false);
+const tableForm = ref({ name: "", capacity: 4, tableStatus: "EMPTY" });
 
 const dragging = ref<{ id: string; offsetX: number; offsetY: number } | null>(null);
 const canvasRef = ref<HTMLElement | null>(null);
@@ -164,6 +263,76 @@ const savePositions = async () => {
     (useNuxtApp() as any).$toast?.error?.(e.message);
   } finally {
     saving.value = false;
+  }
+};
+
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value || 0);
+
+const openTableDetail = async (table: any) => {
+  selectedTable.value = table;
+  tableForm.value = {
+    name: table.name || getDefaultTableName(table.tableNumber),
+    capacity: Number(table.capacity || 4),
+    tableStatus: table.tableStatus || table.status || "EMPTY",
+  };
+  selectedTableDetail.value = null;
+  showDetail.value = true;
+  try {
+    selectedTableDetail.value = await TableApi.getDetail(String(table.id));
+  } catch {
+    selectedTableDetail.value = null;
+  }
+};
+
+const saveTableDetail = async () => {
+  if (!selectedTable.value?.id) return;
+  savingDetail.value = true;
+  try {
+    await TableApi.update(String(selectedTable.value.id), {
+      name: tableForm.value.name,
+      capacity: Number(tableForm.value.capacity || 1),
+      tableStatus: tableForm.value.tableStatus,
+      posX: Math.round(Number(selectedTable.value.posX || 0)),
+      posY: Math.round(Number(selectedTable.value.posY || 0)),
+    });
+    await load();
+    showDetail.value = false;
+    (useNuxtApp() as any).$toast?.success?.("Đã lưu thông tin bàn");
+  } catch (e: any) {
+    (useNuxtApp() as any).$toast?.error?.(e?.message || "Không lưu được bàn");
+  } finally {
+    savingDetail.value = false;
+  }
+};
+
+const clearSelectedTable = async () => {
+  if (!selectedTable.value?.id) return;
+  clearingTable.value = true;
+  try {
+    await TableApi.clear(String(selectedTable.value.id));
+    await load();
+    await openTableDetail(selectedTable.value);
+    (useNuxtApp() as any).$toast?.success?.("Đã dọn bàn");
+  } catch (e: any) {
+    (useNuxtApp() as any).$toast?.error?.(e?.message || "Không dọn được bàn");
+  } finally {
+    clearingTable.value = false;
+  }
+};
+
+const deleteSelectedTable = async () => {
+  if (!selectedTable.value?.id) return;
+  deletingTable.value = true;
+  try {
+    await TableApi.delete(String(selectedTable.value.id));
+    showDetail.value = false;
+    await load();
+    (useNuxtApp() as any).$toast?.success?.("Đã xóa bàn");
+  } catch (e: any) {
+    (useNuxtApp() as any).$toast?.error?.(e?.message || "Không xóa được bàn đang có dữ liệu hoạt động");
+  } finally {
+    deletingTable.value = false;
   }
 };
 

@@ -49,6 +49,7 @@
           :table-id="selectedTable?.id"
           :order-id="selectedTable?.orders?.[0]?.id"
           :table-number="selectedTable?.number"
+          :focus-type="staffOrderFocus"
         />
       </div>
 
@@ -74,6 +75,7 @@
       <StaffChatInbox
         v-model="showStaffChat"
         :tables="staffStore.tables"
+        :initial-table-id="activeChatTableId"
       />
     </div>
   </NuxtLayout>
@@ -103,6 +105,8 @@ const {
   selectedTable,
   showNotifications,
   showStaffChat,
+  activeChatTableId,
+  staffOrderFocus,
   staffRole,
   showTableDetail,
   staffStats,

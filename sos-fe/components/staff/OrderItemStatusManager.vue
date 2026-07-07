@@ -7,11 +7,11 @@
     <!-- Ẩn khu vực quản lý/Thống kê theo yêu cầu -->
 
     <!-- Danh sách món cần cập nhật -->
-    <div v-if="pendingOrderItems.length > 0">
-      <h4 class="font-medium mb-3">Món cần cập nhật trạng thái</h4>
+    <div v-if="visibleOrderItems.length > 0">
+      <h4 class="font-medium mb-3">{{ sectionTitle }}</h4>
       <div class="space-y-3">
         <UCard 
-          v-for="item in pendingOrderItems" 
+          v-for="item in visibleOrderItems" 
           :key="item.id"
           class="p-4"
         >
@@ -102,6 +102,7 @@ import { deriveOrderItemStatus } from '@/utils/formatters'
   tableId?: string
   orderId?: string
   tableNumber?: string
+  focusType?: 'all' | 'kitchen' | 'drinks'
  }
 
 const props = defineProps<Props>()
@@ -130,6 +131,25 @@ const statusCounts = computed(() => {
     counts[s] = (counts[s] || 0) + 1
   })
   return counts
+})
+
+const isDrinkItem = (item: any) => {
+  const text = `${item.menuItemName || ""} ${item.categoryName || ""} ${item.type || ""}`.toLowerCase()
+  return ["đồ uống", "do uong", "drink", "bia", "nước", "nuoc", "trà", "tra", "cafe", "cà phê", "cola", "sinh tố", "latte", "americano", "soda", "mocktail", "bạc xỉu", "bac xiu"].some((keyword) =>
+    text.includes(keyword),
+  )
+}
+
+const visibleOrderItems = computed(() => {
+  if (props.focusType === 'drinks') return pendingOrderItems.value.filter((item) => isDrinkItem(item))
+  if (props.focusType === 'kitchen') return pendingOrderItems.value.filter((item) => !isDrinkItem(item))
+  return pendingOrderItems.value
+})
+
+const sectionTitle = computed(() => {
+  if (props.focusType === 'drinks') return 'Đồ uống cần kiểm tra'
+  if (props.focusType === 'kitchen') return 'Món bếp cần kiểm tra'
+  return 'Món cần cập nhật trạng thái'
 })
 
 // Methods

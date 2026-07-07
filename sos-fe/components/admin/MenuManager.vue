@@ -23,7 +23,7 @@
       <UCard v-for="item in items" :key="item.id">
         <div class="p-4 flex items-center space-x-4">
           <NuxtImg
-            :src="getImageUrl(item.imageUrl)"
+            :src="getImageUrl(item.imageUrl, item.name, item.description, item.categoryId)"
             :alt="item.name"
             class="w-16 h-16 object-cover rounded-lg"
           />

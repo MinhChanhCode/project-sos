@@ -203,7 +203,8 @@
             <div class="flex items-start justify-between gap-4">
               <div class="space-y-1 text-sm">
                 <div>Tạm tính: <b>{{ formatMoney(Number(currentInvoice.subtotal || 0)) }}</b></div>
-                <div>Thuế/phí: <b>{{ formatMoney(Number(currentInvoice.tax || 0) + Number(currentInvoice.serviceFee || 0)) }}</b></div>
+                <div v-if="Number(currentInvoice.discount || 0) > 0">Giảm giá: <b>{{ formatMoney(Number(currentInvoice.discount || 0)) }}</b></div>
+                <div v-if="Number(currentInvoice.serviceFee || 0) > 0">Phí dịch vụ: <b>{{ formatMoney(Number(currentInvoice.serviceFee || 0)) }}</b></div>
                 <div class="text-base">Tổng: <b class="text-orange-600">{{ formatMoney(Number(currentInvoice.total || 0)) }}</b></div>
               </div>
               <div class="rounded-lg border p-2">

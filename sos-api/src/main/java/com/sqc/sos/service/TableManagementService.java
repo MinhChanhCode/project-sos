@@ -25,6 +25,7 @@ public class TableManagementService {
         if (request.getName() != null && tableRepository.findFirstByNameOrderByIdAsc(request.getName()).isPresent()) {
             return tableRepository.findFirstByNameOrderByIdAsc(request.getName()).get();
         }
+        TableStatus parsedStatus = parseStatus(request.getTableStatus());
         TableEntity table = TableEntity.builder()
                 .name(request.getName())
                 .area("main")
@@ -32,8 +33,8 @@ public class TableManagementService {
                 .areaId(request.getAreaId())
                 .posX(request.getPosX() != null ? request.getPosX() : 0)
                 .posY(request.getPosY() != null ? request.getPosY() : 0)
-                .isAvailable(true)
-                .tableStatus(parseStatus(request.getTableStatus()))
+                .isAvailable(TableStatus.EMPTY.equals(parsedStatus))
+                .tableStatus(parsedStatus)
                 .build();
         TableEntity saved = tableRepository.save(table);
         eventPublisher.publishEvent(new TableStatusChangedEvent());
@@ -53,7 +54,10 @@ public class TableManagementService {
         if (request.getAreaId() != null) table.setAreaId(request.getAreaId());
         if (request.getPosX() != null) table.setPosX(request.getPosX());
         if (request.getPosY() != null) table.setPosY(request.getPosY());
-        if (request.getTableStatus() != null) table.setTableStatus(parseStatus(request.getTableStatus()));
+        if (request.getTableStatus() != null) {
+            table.setTableStatus(parseStatus(request.getTableStatus()));
+            table.setIsAvailable(TableStatus.EMPTY.equals(table.getTableStatus()));
+        }
         TableEntity saved = tableRepository.save(table);
         eventPublisher.publishEvent(new TableStatusChangedEvent());
         return saved;

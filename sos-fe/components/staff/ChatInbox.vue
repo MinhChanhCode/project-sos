@@ -62,6 +62,7 @@ import { staffChatApi } from "~/api-service/ExtendedApi";
 const props = defineProps<{
   modelValue: boolean
   tables: Array<{ id: string; number: string }>
+  initialTableId?: string
 }>();
 
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
@@ -95,6 +96,9 @@ const selectTable = async (tableId: string) => {
 
 const loadAll = async () => {
   if (!props.tables.length) return;
+  if (props.initialTableId && selectedTableId.value !== props.initialTableId) {
+    selectedTableId.value = props.initialTableId;
+  }
   if (!selectedTableId.value) selectedTableId.value = props.tables[0].id;
   await selectTable(selectedTableId.value);
 };
@@ -129,6 +133,12 @@ const setupRealtime = () => {
 
 watch(() => props.modelValue, (open) => {
   if (open) loadAll();
+});
+
+watch(() => props.initialTableId, (tableId) => {
+  if (props.modelValue && tableId && tableId !== selectedTableId.value) {
+    selectTable(tableId);
+  }
 });
 
 onMounted(setupRealtime);

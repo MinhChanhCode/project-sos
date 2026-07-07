@@ -58,8 +58,8 @@ public class InvoicePaymentService {
                 .map(this::toResponse)
                 .orElseGet(() -> {
                     BigDecimal subtotal = calculateSubtotal(orderId);
-                    BigDecimal tax = subtotal.multiply(new BigDecimal("0.08")).setScale(0, RoundingMode.HALF_UP);
-                    BigDecimal total = subtotal.add(tax);
+                    BigDecimal tax = BigDecimal.ZERO;
+                    BigDecimal total = subtotal;
                     Invoice invoice = Invoice.builder()
                             .orderId(orderId)
                             .tableId(order.getTable() != null ? order.getTable().getId() : null)

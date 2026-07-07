@@ -170,9 +170,8 @@
         <div class="grid gap-4 md:grid-cols-[1fr_180px]">
           <div class="space-y-2 text-sm">
             <div class="flex justify-between"><span>Tạm tính</span><b>{{ formatPrice(Number(currentInvoice.subtotal || 0)) }}</b></div>
-            <div class="flex justify-between"><span>Giảm giá</span><b>{{ formatPrice(Number(currentInvoice.discount || 0)) }}</b></div>
-            <div class="flex justify-between"><span>Phí dịch vụ</span><b>{{ formatPrice(Number(currentInvoice.serviceFee || 0)) }}</b></div>
-            <div class="flex justify-between"><span>Thuế</span><b>{{ formatPrice(Number(currentInvoice.tax || 0)) }}</b></div>
+            <div v-if="Number(currentInvoice.discount || 0) > 0" class="flex justify-between"><span>Giảm giá</span><b>{{ formatPrice(Number(currentInvoice.discount || 0)) }}</b></div>
+            <div v-if="Number(currentInvoice.serviceFee || 0) > 0" class="flex justify-between"><span>Phí dịch vụ</span><b>{{ formatPrice(Number(currentInvoice.serviceFee || 0)) }}</b></div>
             <div class="flex justify-between border-t pt-2 text-base"><span>Tổng tiền</span><b>{{ formatPrice(Number(currentInvoice.total || 0)) }}</b></div>
           </div>
           <div class="flex flex-col items-center rounded-lg border p-3">

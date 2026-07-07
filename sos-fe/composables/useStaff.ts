@@ -47,6 +47,8 @@ export const useStaff = () => {
   const selectedTable = ref<Table | null>(null)
   const showNotifications = ref(false)
   const showStaffChat = ref(false)
+  const activeChatTableId = ref("")
+  const staffOrderFocus = ref<'all' | 'kitchen' | 'drinks'>('all')
   const staffRole = ref('server')
   const activeTab = ref('tables')
   const { soundEnabled, toggleSound, playNotificationSound } = useNotificationSound()
@@ -614,10 +616,12 @@ export const useStaff = () => {
     
     switch (action) {
       case 'kitchen':
+        staffOrderFocus.value = 'kitchen'
         document.querySelector('[data-staff-order-status]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         toast.info('Đang mở danh sách trạng thái bếp')
         break
       case 'drinks':
+        staffOrderFocus.value = 'drinks'
         document.querySelector('[data-staff-order-status]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         toast.info('Đang lọc/xem nhanh đồ uống trong trạng thái món')
         break
@@ -625,6 +629,7 @@ export const useStaff = () => {
         toast.info('Chọn bàn đã thanh toán trong sơ đồ rồi bấm Dọn bàn')
         break
       case 'message':
+        activeChatTableId.value = selectedTable.value?.id || ''
         showStaffChat.value = true
         break
     }
@@ -776,8 +781,10 @@ export const useStaff = () => {
   }
 
   const handleChatCustomer = () => {
-    const toast = useNuxtApp().$toast as typeof toastType
-    toast.info('Mở chat với khách hàng...')
+    if (selectedTable.value?.id) {
+      activeChatTableId.value = selectedTable.value.id
+    }
+    showStaffChat.value = true
   }
 
   const handleCompleteTable = () => {
@@ -813,6 +820,8 @@ export const useStaff = () => {
     selectedTable,
     showNotifications,
     showStaffChat,
+    activeChatTableId,
+    staffOrderFocus,
     staffRole,
     activeTab,
     

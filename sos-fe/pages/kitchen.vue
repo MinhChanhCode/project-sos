@@ -65,7 +65,12 @@
             >
               <div class="flex items-start justify-between gap-3">
                 <div>
-                  <div class="font-semibold">{{ item.menuItemName }}</div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <div class="font-semibold">{{ item.menuItemName }}</div>
+                    <UBadge :color="isDrinkItem(item) ? 'blue' : 'orange'" variant="soft" size="xs">
+                      {{ isDrinkItem(item) ? "Đồ uống" : "Bếp" }}
+                    </UBadge>
+                  </div>
                   <div class="mt-1 text-sm text-slate-400">Bàn: {{ item.tableName || item.tableId || "Chưa rõ" }}</div>
                 </div>
                 <UBadge v-if="isLate(item)" color="red" variant="solid">Trễ</UBadge>
@@ -100,6 +105,41 @@
             </article>
             <p v-if="!column.items.length" class="py-8 text-center text-sm text-slate-500">Không có món</p>
           </div>
+        </div>
+      </section>
+
+      <section class="mt-4 rounded-lg border border-slate-800 bg-slate-900">
+        <div class="flex items-center justify-between border-b border-slate-800 px-4 py-3">
+          <div>
+            <h2 class="font-semibold">Lịch sử món đã làm</h2>
+            <p class="text-xs text-slate-400">Các món đã sẵn sàng, đã phục vụ, hủy hoặc báo hết trong ca hiện tại</p>
+          </div>
+          <UBadge color="blue" variant="soft">{{ historyItems.length }} mục</UBadge>
+        </div>
+        <div class="max-h-80 overflow-y-auto divide-y divide-slate-800">
+          <article
+            v-for="item in historyItems"
+            :key="`history-${item.id}`"
+            class="grid gap-2 px-4 py-3 text-sm md:grid-cols-[1fr_160px_160px_120px]"
+          >
+            <div>
+              <div class="flex flex-wrap items-center gap-2 font-medium">
+                <span>{{ item.menuItemName }}</span>
+                <UBadge :color="isDrinkItem(item) ? 'blue' : 'orange'" variant="soft" size="xs">
+                  {{ isDrinkItem(item) ? "Đồ uống" : "Bếp" }}
+                </UBadge>
+              </div>
+              <p class="mt-1 text-xs text-slate-400">Bàn: {{ item.tableName || item.tableId || "Chưa rõ" }}</p>
+            </div>
+            <div class="text-slate-300">Sẵn sàng: <b>{{ item.completedQuantity || 0 }}</b></div>
+            <div class="text-slate-300">Đã phục vụ: <b>{{ item.servedQuantity || 0 }}</b></div>
+            <div>
+              <UBadge :color="getHistoryColor(item)" variant="soft">{{ getHistoryLabel(item) }}</UBadge>
+            </div>
+          </article>
+          <p v-if="!historyItems.length" class="px-4 py-8 text-center text-sm text-slate-500">
+            Chưa có món trong lịch sử ca này
+          </p>
         </div>
       </section>
 
@@ -214,6 +254,18 @@ const isLate = (item: any) => {
   return Date.now() - started > minutes * 60 * 1000;
 };
 
+const getMenuItem = (item: any) =>
+  menuItems.value.find((menu: any) => Number(menu.id) === Number(item.menuItemId));
+
+const isDrinkItem = (item: any) => {
+  const menuItem = getMenuItem(item);
+  const category = categoryById.value.get(String(menuItem?.categoryId || ""));
+  const text = `${menuItem?.type || ""} ${category?.name || menuItem?.categoryName || ""} ${item.menuItemName || ""}`.toLowerCase();
+  return ["drink", "đồ uống", "do uong", "bia", "nước", "nuoc", "trà", "tra", "cafe", "cà phê"].some((keyword) =>
+    text.includes(keyword),
+  );
+};
+
 const getColumnItems = (status: "pending" | "preparing" | "ready" | "done") => {
   return filteredItems.value.filter((item: any) => {
     if (status === "pending") return (item.pendingQuantity || 0) > 0;
@@ -221,6 +273,32 @@ const getColumnItems = (status: "pending" | "preparing" | "ready" | "done") => {
     if (status === "ready") return (item.completedQuantity || 0) > 0;
     return (item.servedQuantity || 0) > 0;
   });
+};
+
+const historyItems = computed(() =>
+  filteredItems.value
+    .filter((item: any) =>
+      (item.completedQuantity || 0) > 0 ||
+      (item.servedQuantity || 0) > 0 ||
+      (item.cancelledQuantity || 0) > 0 ||
+      (item.outOfStockQuantity || 0) > 0,
+    )
+    .slice()
+    .sort((a: any, b: any) => new Date(b.orderTime || 0).getTime() - new Date(a.orderTime || 0).getTime()),
+);
+
+const getHistoryLabel = (item: any) => {
+  if ((item.outOfStockQuantity || 0) > 0) return "Hết món";
+  if ((item.cancelledQuantity || 0) > 0) return "Đã hủy";
+  if ((item.servedQuantity || 0) > 0) return "Đã phục vụ";
+  return "Sẵn sàng";
+};
+
+const getHistoryColor = (item: any) => {
+  if ((item.outOfStockQuantity || 0) > 0) return "red";
+  if ((item.cancelledQuantity || 0) > 0) return "gray";
+  if ((item.servedQuantity || 0) > 0) return "blue";
+  return "green";
 };
 
 const columns = computed(() => [
