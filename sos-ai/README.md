@@ -17,8 +17,10 @@ uvicorn main:app --reload --port 8000
 
 ## Biến môi trường (tùy chọn)
 
-- `OPENAI_API_KEY` — bật GPT khi có key; không có thì dùng RAG local
+- `OPENAI_API_KEY` — bật OpenAI khi có key; không có thì thử Gemini hoặc dùng RAG local
 - `OPENAI_MODEL` — mặc định `gpt-4o-mini`
+- `GEMINI_API_KEY` — bật Gemini khi có key
+- `GEMINI_MODEL` — mặc định `gemini-2.5-flash`
 
 ## API
 

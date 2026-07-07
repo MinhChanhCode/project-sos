@@ -19,4 +19,4 @@ services:
       - key: QR_BASE_URL
         value: https://sos-fe.vercel.app
       - key: AI_SERVICE_URL
-        value: http://127.0.0.1:8000
+        sync: false

@@ -7,6 +7,9 @@ from __future__ import annotations
 import os
 import re
 import json
+import urllib.error
+import urllib.parse
+import urllib.request
 from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
@@ -70,6 +73,9 @@ class ChatResponse(BaseModel):
     actions: list[dict] = Field(default_factory=list)
     usedTools: list[str] = Field(default_factory=list)
     memoryUpdated: bool = False
+    llmUsed: bool = False
+    llmProvider: Optional[str] = None
+    fallbackReason: Optional[str] = None
 
 
 class SentimentRequest(BaseModel):
@@ -584,22 +590,21 @@ def analyze_sentiment(text: str) -> SentimentResponse:
     return SentimentResponse(sentiment="NEUTRAL", confidence=0.7)
 
 
-def call_openai(message: str, context: str, intent: str, tool_data: dict[str, Any], session_id: str) -> Optional[str]:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        system_prompt = f"""
+def has_llm_config() -> bool:
+    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY"))
+
+
+def build_llm_prompt(message: str, context: str, intent: str, tool_data: dict[str, Any], session_id: str) -> str:
+    return f"""
 Bạn là trợ lý AI nhà hàng của ProjectSOS.
 Nhiệm vụ: tư vấn món, combo, khẩu vị, ngân sách, dị ứng, hướng dẫn đặt món, gọi nhân viên, thanh toán và trả lời FAQ nhà hàng.
-Luôn trả lời bằng tiếng Việt, thân thiện, ngắn gọn, dễ hiểu.
+Luôn trả lời bằng tiếng Việt, thân thiện, tự nhiên như nhân viên nhà hàng chuyên nghiệp, ngắn gọn nhưng không khô cứng.
 Chỉ trả lời trong phạm vi nhà hàng, menu, order, giỏ hàng, thanh toán và dịch vụ.
 Nếu khách hỏi ngoài phạm vi nhà hàng, hãy lịch sự nói bạn chỉ hỗ trợ dịch vụ nhà hàng và gợi ý khách chọn món/gọi nhân viên.
 Không bịa món không có trong menu. Chỉ gợi ý món còn hoạt động/còn món trong context.
 Nếu thiếu thông tin như ngân sách, số người, mức cay hoặc dị ứng, hãy hỏi lại 1 câu ngắn.
 Nếu không chắc, hãy khuyên khách bấm Nhắn nhân viên.
+Nếu TOOL DATA có draftReply/template, hãy viết lại tự nhiên hơn nhưng giữ nguyên dữ liệu thật, giá, trạng thái, số lượng.
 
 Intent hiện tại: {intent}
 
@@ -615,6 +620,15 @@ BỘ NHỚ HỘI THOẠI:
 FAQ NHÀ HÀNG:
 {build_faq_context()}
 """.strip()
+
+
+def call_openai(message: str, system_prompt: str) -> tuple[Optional[str], Optional[str]]:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None, "openai_key_missing"
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
         resp = client.chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=[
@@ -624,9 +638,78 @@ FAQ NHÀ HÀNG:
             max_tokens=500,
             temperature=0.35,
         )
-        return resp.choices[0].message.content
-    except Exception:
-        return None
+        return resp.choices[0].message.content, None
+    except Exception as exc:
+        return None, f"openai_error:{type(exc).__name__}"
+
+
+def call_gemini(message: str, system_prompt: str) -> tuple[Optional[str], Optional[str]]:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return None, "gemini_key_missing"
+    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        + urllib.parse.quote(model, safe="-_.")
+        + ":generateContent?key="
+        + urllib.parse.quote(api_key, safe="")
+    )
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "text": f"{system_prompt}\n\nCâu hỏi của khách: {message}"
+                    }
+                ],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.45,
+            "maxOutputTokens": 700,
+        },
+    }
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        request = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=15) as response:
+            parsed = json.loads(response.read().decode("utf-8"))
+        candidates = parsed.get("candidates") or []
+        if not candidates:
+            return None
+        parts = (((candidates[0] or {}).get("content") or {}).get("parts") or [])
+        text = "\n".join(str(part.get("text", "")) for part in parts if part.get("text"))
+        return (text.strip() or None), None
+    except urllib.error.HTTPError as exc:
+        return None, f"gemini_http_error:{exc.code}"
+    except (urllib.error.URLError, TimeoutError) as exc:
+        return None, f"gemini_network_error:{type(exc).__name__}"
+    except Exception as exc:
+        return None, f"gemini_error:{type(exc).__name__}"
+
+
+def call_llm(message: str, context: str, intent: str, tool_data: dict[str, Any], session_id: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    system_prompt = build_llm_prompt(message, context, intent, tool_data, session_id)
+    errors: list[str] = []
+    if os.getenv("OPENAI_API_KEY"):
+        text, error = call_openai(message, system_prompt)
+        if text:
+            return text, "openai", None
+        if error:
+            errors.append(error)
+    if os.getenv("GEMINI_API_KEY"):
+        text, error = call_gemini(message, system_prompt)
+        if text:
+            return text, "gemini", None
+        if error:
+            errors.append(error)
+    return None, None, ";".join(errors) if errors else "no_llm_key_configured"
 
 
 def summarize_order_status(data: dict) -> str:
@@ -731,16 +814,29 @@ def chat(req: ChatRequest):
 
     menu_context = build_menu_context(suggested_items or get_context_menu(req.context), limit=12)
     deterministic_reply = build_tool_reply(req, intent, tool_data, suggested_items)
-    needs_llm = deterministic_reply is None or intent in {"MENU_RECOMMENDATION", "COMBO", "BEST_SELLER", "PROMOTION"}
+    if deterministic_reply:
+        tool_data["draftReply"] = deterministic_reply
+    needs_llm = has_llm_config() and intent != "OUT_OF_SCOPE"
     reply = deterministic_reply
+    llm_used = False
+    llm_provider = None
+    fallback_reason = None
     if needs_llm:
-        reply = call_openai(req.message, menu_context, intent, tool_data, session_id) or deterministic_reply
+        llm_reply, llm_provider, fallback_reason = call_llm(req.message, menu_context, intent, tool_data, session_id)
+        if llm_reply:
+            reply = llm_reply
+            llm_used = True
+        else:
+            reply = deterministic_reply
+    elif not has_llm_config():
+        fallback_reason = "no_llm_key_configured"
     if not reply:
         previous_menu = MENU_ITEMS
         try:
             if req.context.get("menu"):
                 globals()["MENU_ITEMS"] = get_context_menu(req.context)
             reply = build_rag_reply(req.message)
+            fallback_reason = fallback_reason or "local_rag_fallback"
         finally:
             globals()["MENU_ITEMS"] = previous_menu
 
@@ -754,6 +850,9 @@ def chat(req: ChatRequest):
         actions=actions,
         usedTools=used_tools,
         memoryUpdated=memory_updated,
+        llmUsed=llm_used,
+        llmProvider=llm_provider,
+        fallbackReason=fallback_reason,
     )
 
 

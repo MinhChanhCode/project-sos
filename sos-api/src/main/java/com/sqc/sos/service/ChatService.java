@@ -13,6 +13,7 @@ import com.sqc.sos.repository.ICartRepository;
 import com.sqc.sos.repository.IMenuItemRepository;
 import com.sqc.sos.repository.IOrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ChatService {
     private final IChatHistoryRepository chatHistoryRepository;
     private final IMenuItemRepository menuItemRepository;
@@ -45,12 +47,17 @@ public class ChatService {
         List<Map<String, Object>> actions = aiResult.actions();
         List<String> usedTools = aiResult.usedTools();
         boolean memoryUpdated = aiResult.memoryUpdated();
+        boolean llmUsed = aiResult.llmUsed();
+        String llmProvider = aiResult.llmProvider();
+        String fallbackReason = aiResult.fallbackReason();
 
         if (reply == null || reply.isBlank()) {
             reply = buildLocalRagReply(request.getMessage());
             intent = intent != null ? intent : detectLocalIntent(request.getMessage());
             usedTools = List.of("local_menu_rag");
             memoryUpdated = false;
+            llmUsed = false;
+            fallbackReason = fallbackReason != null ? fallbackReason : "sos_api_local_rag_ai_service_unavailable";
         }
         ChatHistory history = ChatHistory.builder()
                 .sessionId(sessionId)
@@ -66,6 +73,9 @@ public class ChatService {
                 .actions(actions)
                 .usedTools(usedTools)
                 .memoryUpdated(memoryUpdated)
+                .llmUsed(llmUsed)
+                .llmProvider(llmProvider)
+                .fallbackReason(fallbackReason)
                 .historyId(history.getId())
                 .build();
     }
@@ -95,7 +105,8 @@ public class ChatService {
             if (response != null) {
                 return ChatAiResult.from(response);
             }
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            log.warn("AI service call failed at {}: {}", aiServiceUrl, ex.getMessage());
         }
         return ChatAiResult.empty();
     }
@@ -262,10 +273,13 @@ public class ChatService {
             List<Map<String, Object>> suggestedItems,
             List<Map<String, Object>> actions,
             List<String> usedTools,
-            boolean memoryUpdated
+            boolean memoryUpdated,
+            boolean llmUsed,
+            String llmProvider,
+            String fallbackReason
     ) {
         static ChatAiResult empty() {
-            return new ChatAiResult(null, null, List.of(), List.of(), List.of(), false);
+            return new ChatAiResult(null, null, List.of(), List.of(), List.of(), false, false, null, null);
         }
 
         @SuppressWarnings("unchecked")
@@ -282,7 +296,10 @@ public class ChatService {
                     ? ((List<?>) response.get("usedTools")).stream().map(Object::toString).toList()
                     : List.of();
             boolean memoryUpdated = Boolean.TRUE.equals(response.get("memoryUpdated"));
-            return new ChatAiResult(reply, intent, suggestedItems, actions, usedTools, memoryUpdated);
+            boolean llmUsed = Boolean.TRUE.equals(response.get("llmUsed"));
+            String llmProvider = response.get("llmProvider") != null ? response.get("llmProvider").toString() : null;
+            String fallbackReason = response.get("fallbackReason") != null ? response.get("fallbackReason").toString() : null;
+            return new ChatAiResult(reply, intent, suggestedItems, actions, usedTools, memoryUpdated, llmUsed, llmProvider, fallbackReason);
         }
     }
 }

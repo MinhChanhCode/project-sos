@@ -19,5 +19,8 @@ public class ChatResponse {
     List<Map<String, Object>> actions;
     List<String> usedTools;
     Boolean memoryUpdated;
+    Boolean llmUsed;
+    String llmProvider;
+    String fallbackReason;
     Long historyId;
 }
