@@ -3,7 +3,7 @@
     <div class="min-h-screen bg-slate-950 text-white">
       <button
         type="button"
-        class="fixed left-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-slate-950/85 text-white shadow-xl shadow-black/30 backdrop-blur transition duration-300 ease hover:border-orange-400 hover:text-orange-400"
+        class="fixed left-4 top-4 z-50 flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-slate-950/85 text-white shadow-xl shadow-black/30 backdrop-blur transition duration-300 ease hover:border-orange-400 hover:text-orange-400 lg:hidden"
         aria-label="Mở hoặc đóng menu"
         :aria-expanded="isSidebarOpen"
         @click="toggleSidebar"
@@ -20,10 +20,10 @@
       />
 
       <aside
-        class="fixed inset-y-0 left-0 z-40 flex w-[280px] flex-col border-r border-white/10 bg-slate-950/95 px-5 py-7 shadow-2xl shadow-black/50 backdrop-blur-xl transition duration-300 ease lg:translate-x-0"
+        class="fixed inset-y-0 left-0 z-40 flex w-[280px] flex-col border-r border-white/10 bg-slate-950/95 px-5 pb-7 pt-20 shadow-2xl shadow-black/50 backdrop-blur-xl transition duration-300 ease lg:translate-x-0 lg:pt-7"
         :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
       >
-        <div class="mb-10 ml-12 flex items-center gap-4 lg:ml-0">
+        <div class="mb-10 flex items-center gap-4">
           <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-lg shadow-orange-500/25">
             <Icon name="lucide:chef-hat" class="h-8 w-8" />
           </div>
@@ -53,15 +53,6 @@
       </aside>
 
       <main class="min-h-screen transition duration-300 ease lg:pl-[280px]">
-        <div class="border-b border-white/10 bg-slate-950/90 px-5 py-6 backdrop-blur md:px-10">
-          <div class="mx-auto flex max-w-7xl justify-center lg:justify-start">
-            <div class="inline-flex items-center gap-3 rounded-lg border border-orange-500/40 bg-orange-500/5 px-5 py-3 text-sm font-semibold text-orange-400">
-              <Icon name="lucide:star" class="h-4 w-4" />
-              Vẹn nguyên tinh túy ẩm thực Việt
-            </div>
-          </div>
-        </div>
-
         <HomeHeroSection />
 
         <section class="mx-auto grid max-w-7xl gap-5 px-5 py-8 sm:grid-cols-2 md:px-10 xl:grid-cols-4">
