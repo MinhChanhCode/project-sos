@@ -1,11 +1,16 @@
 <template>
   <div class="space-y-4">
-    <div class="relative flex items-center justify-center">
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <div>
+        <h2 class="text-lg font-semibold text-white">Sơ đồ bàn</h2>
+        <p class="text-sm text-slate-400">Kéo thả khối bàn để sắp xếp vị trí trong nhà hàng</p>
+      </div>
       <UButton size="lg" color="green" :loading="syncing || loading" @click="addTable">
         <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
         Thêm bàn
       </UButton>
-      <UButton class="absolute right-0" size="sm" variant="outline" :loading="saving" :disabled="!visibleTables.length" @click="savePositions">
+      <UButton size="sm" variant="outline" :loading="saving" :disabled="!visibleTables.length" @click="savePositions">
+        <Icon name="lucide:save" class="mr-1 h-4 w-4" />
         Lưu vị trí
       </UButton>
     </div>
@@ -13,7 +18,7 @@
     <div class="overflow-x-auto pb-2">
       <div
         ref="canvasRef"
-        class="relative h-[900px] min-w-[1380px] overflow-hidden rounded-2xl border-2 border-dashed border-slate-500/80 bg-slate-900 shadow-inner"
+        class="relative h-[900px] min-w-[1380px] overflow-hidden rounded-2xl border border-slate-700 bg-[linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(0deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:48px_48px] bg-slate-950 shadow-inner"
         @mousemove="onDrag"
         @mouseup="endDrag"
         @mouseleave="endDrag"
@@ -28,7 +33,7 @@
           <SharedFloorPlanTable :number="table.tableNumber" :status="table.displayStatus" />
           <button
             type="button"
-            class="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-slate-200 shadow-lg transition hover:border-emerald-400 hover:text-emerald-300"
+            class="absolute -right-3 -top-3 flex h-9 w-9 items-center justify-center rounded-full border border-emerald-300/60 bg-slate-950 text-emerald-200 shadow-lg shadow-black/30 transition hover:border-emerald-300 hover:bg-emerald-400 hover:text-slate-950"
             title="Chi tiết bàn"
             @mousedown.stop
             @click.stop="openTableDetail(table)"
@@ -241,8 +246,8 @@ const onDrag = (e: MouseEvent) => {
   const rect = canvasRef.value.getBoundingClientRect();
   const table = tables.value.find((t) => t.id === dragging.value!.id);
   if (table) {
-    table.posX = Math.max(0, Math.min(e.clientX - rect.left - dragging.value.offsetX, rect.width - 128));
-    table.posY = Math.max(0, Math.min(e.clientY - rect.top - dragging.value.offsetY, rect.height - 128));
+    table.posX = Math.max(0, Math.min(e.clientX - rect.left - dragging.value.offsetX, rect.width - 156));
+    table.posY = Math.max(0, Math.min(e.clientY - rect.top - dragging.value.offsetY, rect.height - 112));
   }
 };
 

@@ -5,17 +5,14 @@
     :class="[{ 'floor-table--readonly': readonly }, statusClass]"
     @click="$emit('select')"
   >
-    <span class="chair chair-top chair-a" />
-    <span class="chair chair-top chair-b" />
-    <span class="chair chair-right chair-a" />
-    <span class="chair chair-right chair-b" />
-    <span class="chair chair-bottom chair-a" />
-    <span class="chair chair-bottom chair-b" />
-    <span class="chair chair-left chair-a" />
-    <span class="chair chair-left chair-b" />
     <span class="table-surface">
-      <span class="table-number">{{ number }}</span>
+      <span class="table-topline">
+        <Icon name="lucide:table-2" class="table-icon" />
+        <span class="table-status-dot" />
+      </span>
+      <span class="table-number">Bàn {{ number || "--" }}</span>
       <span v-if="status && status !== 'EMPTY'" class="table-status">{{ status }}</span>
+      <span v-else class="table-status">Trống</span>
     </span>
   </button>
 </template>
@@ -48,8 +45,8 @@ const statusClass = computed(() => {
 <style scoped>
 .floor-table {
   position: relative;
-  width: 128px;
-  height: 128px;
+  width: 156px;
+  height: 112px;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -61,20 +58,42 @@ const statusClass = computed(() => {
 
 .table-surface {
   position: absolute;
-  inset: 20px;
+  inset: 0;
   z-index: 2;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: space-between;
   border: 2px solid rgba(148, 163, 184, 0.95);
-  border-radius: 10px;
+  border-radius: 18px;
+  padding: 14px;
   background: linear-gradient(145deg, #ffffff 0%, #f8fafc 58%, #e5e7eb 100%);
   box-shadow:
-    0 12px 24px rgba(2, 6, 23, 0.28),
+    0 16px 30px rgba(2, 6, 23, 0.36),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   color: #111827;
   transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.table-topline {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table-icon {
+  width: 22px;
+  height: 22px;
+  opacity: 0.82;
+}
+
+.table-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.65);
 }
 
 .floor-table--empty .table-surface {
@@ -120,76 +139,26 @@ const statusClass = computed(() => {
 }
 
 .floor-table:hover .table-surface {
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.02);
   box-shadow:
-    0 16px 30px rgba(2, 6, 23, 0.34),
+    0 20px 36px rgba(2, 6, 23, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .table-number {
-  font-size: 30px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1;
 }
 
 .table-status {
-  margin-top: 6px;
-  font-size: 10px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #64748b;
-}
-
-.chair {
-  position: absolute;
-  z-index: 1;
-  width: 34px;
-  height: 20px;
-  border: 2px solid rgba(226, 232, 240, 0.95);
-  border-radius: 6px;
-  background: linear-gradient(145deg, rgba(226, 232, 240, 0.92), rgba(100, 116, 139, 0.55));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
-}
-
-.chair-top {
-  top: 0;
-}
-
-.chair-bottom {
-  bottom: 0;
-}
-
-.chair-top.chair-a,
-.chair-bottom.chair-a {
-  left: 32px;
-}
-
-.chair-top.chair-b,
-.chair-bottom.chair-b {
-  right: 32px;
-}
-
-.chair-left,
-.chair-right {
-  width: 20px;
-  height: 34px;
-}
-
-.chair-left {
-  left: 0;
-}
-
-.chair-right {
-  right: 0;
-}
-
-.chair-left.chair-a,
-.chair-right.chair-a {
-  top: 34px;
-}
-
-.chair-left.chair-b,
-.chair-right.chair-b {
-  bottom: 34px;
+  color: currentColor;
+  opacity: 0.8;
 }
 </style>

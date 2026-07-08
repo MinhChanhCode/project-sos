@@ -12,7 +12,7 @@
         </template>
       </AppHeader>
 
-      <section class="mt-4 grid gap-3 md:grid-cols-5">
+      <section class="mt-4 grid gap-3 md:grid-cols-4">
         <div v-for="stat in kitchenStats" :key="stat.label" class="rounded-lg border border-slate-800 bg-slate-900 p-3">
           <div class="text-xs text-slate-400">{{ stat.label }}</div>
           <div class="mt-1 text-2xl font-bold">{{ stat.value }}</div>
@@ -43,7 +43,7 @@
         </UButton>
       </section>
 
-      <section class="mt-4 grid gap-4 xl:grid-cols-4">
+      <section class="mt-4 grid gap-4 xl:grid-cols-2">
         <div
           v-for="column in columns"
           :key="column.key"
@@ -78,7 +78,6 @@
               <div class="mt-3 grid grid-cols-2 gap-2 text-sm text-slate-300">
                 <div>Chờ: <b>{{ item.pendingQuantity || 0 }}</b></div>
                 <div>Đang làm: <b>{{ item.preparingQuantity || 0 }}</b></div>
-                <div>Sẵn sàng: <b>{{ item.completedQuantity || 0 }}</b></div>
                 <div>SL tính tiền: <b>{{ item.totalQuantity || 0 }}</b></div>
               </div>
               <p v-if="item.notes" class="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
@@ -304,15 +303,12 @@ const getHistoryColor = (item: any) => {
 const columns = computed(() => [
   { key: "pending", title: "Mới nhận", description: "Món đang chờ bếp", color: "gray", items: getColumnItems("pending") },
   { key: "preparing", title: "Đang chế biến", description: "Món bếp đang làm", color: "yellow", items: getColumnItems("preparing") },
-  { key: "ready", title: "Sẵn sàng phục vụ", description: "Báo nhân viên mang ra", color: "green", items: getColumnItems("ready") },
-  { key: "done", title: "Đã hoàn thành", description: "Đã phục vụ khách", color: "blue", items: getColumnItems("done") },
 ]);
 
 const kitchenStats = computed(() => [
   { label: "Order mới", value: newOrderCount.value },
   { label: "Món chờ", value: getColumnItems("pending").length },
   { label: "Đang chế biến", value: getColumnItems("preparing").length },
-  { label: "Sẵn sàng", value: getColumnItems("ready").length },
   { label: "Món hết", value: unavailableCount.value },
 ]);
 
