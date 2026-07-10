@@ -61,6 +61,31 @@ public class MenuAiSyncService {
         }
     }
 
+    public Map<String, Object> health() {
+        if (aiServiceUrl == null || aiServiceUrl.isBlank()) {
+            return Map.of("connected", false, "reason", "AI service URL is not configured");
+        }
+        try {
+            Map<String, Object> response = WebClient.create(aiServiceUrl)
+                    .get()
+                    .uri("/health")
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block(Duration.ofSeconds(5));
+            return Map.of(
+                    "connected", response != null,
+                    "aiServiceUrl", aiServiceUrl,
+                    "aiResponse", response != null ? response : Map.of()
+            );
+        } catch (Exception ex) {
+            return Map.of(
+                    "connected", false,
+                    "aiServiceUrl", aiServiceUrl,
+                    "reason", ex.getMessage()
+            );
+        }
+    }
+
     private Map<String, Object> toAiItem(MenuItem item) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("id", item.getId());

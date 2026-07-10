@@ -9,6 +9,7 @@ import com.sqc.sos.dto.page.PageResponse;
 import com.sqc.sos.service.ICartService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,9 @@ import java.util.UUID;
 public class CartController {
 
     private final ICartService cartService;
+
+    @Value("${app.qr-base-url:${app.frontend-url:http://localhost:3000}}")
+    private String qrBaseUrl;
 
     // Tạo giỏ hàng mới cho bàn
     @PostMapping
@@ -120,7 +124,16 @@ public class CartController {
     @GetMapping("/table/{tableId}/qr")
     public ResponseEntity<ApiResponse<String>> getTableQR(@PathVariable UUID tableId) {
         log.info("GET /carts/table/{}/qr", tableId);
-        String qrUrl = "http://localhost:8080/api/v1/carts/table/" + tableId;
+        String baseUrl = normalizeBaseUrl(qrBaseUrl);
+        String qrUrl = baseUrl + "/customer?tableId=" + tableId;
         return ResponseEntity.ok(ApiResponse.success(qrUrl, "Link QR cho bàn"));
+    }
+
+    private String normalizeBaseUrl(String value) {
+        String baseUrl = value == null || value.isBlank() ? "http://localhost:3000" : value.trim();
+        while (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl;
     }
 } 

@@ -11,7 +11,10 @@
     <UCard v-else class="w-80 sm:w-96 shadow-xl">
       <template #header>
         <div class="flex items-center justify-between">
-          <span class="font-semibold">Tư vấn món ăn AI</span>
+          <div>
+            <span class="font-semibold">Tư vấn món ăn AI</span>
+            <p v-if="aiStatus" class="text-[11px] text-gray-400">{{ aiStatus }}</p>
+          </div>
           <UButton variant="ghost" size="xs" icon="i-lucide-x" @click="open = false" />
         </div>
       </template>
@@ -35,14 +38,17 @@
           v-for="item in lastSuggestedItems"
           :key="item.id"
           type="button"
-          class="flex w-full items-center justify-between rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-left text-xs text-gray-900 transition hover:bg-orange-100 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-white"
+          class="flex w-full items-center justify-between rounded-lg border border-orange-100 bg-orange-50 px-3 py-2 text-left text-xs text-gray-900 transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-orange-900/50 dark:bg-orange-950/30 dark:text-white"
+          :disabled="item.isAvailable === false"
           @click="emit('addToCart', normalizeSuggestedItem(item))"
         >
           <span class="min-w-0">
             <span class="block truncate font-semibold">{{ item.name }}</span>
-            <span class="text-orange-600 dark:text-orange-300">{{ formatMoney(Number(item.promotionalPrice || item.price || 0)) }}</span>
+            <span class="text-orange-600 dark:text-orange-300">
+              {{ item.isAvailable === false ? 'Hết món' : formatMoney(Number(item.promotionalPrice || item.price || 0)) }}
+            </span>
           </span>
-          <span class="ml-2 rounded-full bg-orange-500 px-2 py-1 font-semibold text-white">Thêm</span>
+          <span class="ml-2 rounded-full bg-orange-500 px-2 py-1 font-semibold text-white">{{ item.isAvailable === false ? 'Hết' : 'Thêm' }}</span>
         </button>
       </div>
       <div class="mb-3 flex gap-2 overflow-x-auto pb-1">
@@ -92,13 +98,15 @@ const messages = ref<{ role: "user" | "bot"; text: string }[]>([
 const messagesRef = ref<HTMLElement | null>(null);
 const chatSessionId = ref(props.sessionId || "");
 const lastSuggestedItems = ref<any[]>([]);
+const aiStatus = ref("");
 const quickQuestions = [
-  "Combo cho 2 người dưới 200k",
-  "Món không cay",
-  "Tôi dị ứng hải sản",
+  "Gợi ý combo cho 2 người dưới 200k",
+  "Món chính không cay cho trẻ em",
+  "Tôi dị ứng hải sản, nên ăn gì?",
+  "Giỏ hàng của tôi có gì?",
+  "Món của tôi tới đâu rồi?",
   "Gọi nhân viên",
   "Tôi muốn thanh toán",
-  "Món của tôi tới đâu rồi?",
   "Nhà hàng mở cửa lúc mấy giờ?",
 ];
 
@@ -131,8 +139,13 @@ const sendMessage = async (text: string) => {
       tableNumber: props.tableNumber,
       customerName: props.customerName,
       message: text,
-    }) as { reply?: string; suggestedItems?: any[]; actions?: any[] };
+    }) as { reply?: string; suggestedItems?: any[]; actions?: any[]; llmUsed?: boolean; llmProvider?: string; fallbackReason?: string };
     lastSuggestedItems.value = Array.isArray(res.suggestedItems) ? res.suggestedItems : [];
+    aiStatus.value = res.llmUsed
+      ? `Đang dùng ${res.llmProvider === 'gemini' ? 'Gemini' : res.llmProvider === 'openai' ? 'OpenAI' : 'AI'} + dữ liệu menu thật`
+      : res.fallbackReason
+        ? "Đang dùng dữ liệu nội bộ của nhà hàng"
+        : "";
     messages.value.push({ role: "bot", text: res.reply || "Xin lỗi, tôi chưa trả lời được." });
     if (Array.isArray(res.actions) && res.actions.some((action) => action?.type === "REQUEST_PAYMENT")) {
       emit("requestPayment");

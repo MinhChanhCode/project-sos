@@ -95,6 +95,14 @@ SEARCH_INDEX: list[dict] = []
 KNOWLEDGE_BASE_PATH = Path(__file__).with_name("knowledge_base.json")
 CONVERSATION_MEMORY: dict[str, dict[str, Any]] = {}
 MAX_MEMORY_MESSAGES = 12
+RESTAURANT_PROFILE = {
+    "name": "Bếp Mẹ Hương",
+    "brand": "Gọi Món",
+    "openingHours": "08:00 - 22:00 mỗi ngày",
+    "style": "Nhà hàng gia đình hiện đại, khách quét QR tại bàn để gọi món.",
+    "payment": "Bill có QR thanh toán demo; nhân viên xác nhận trên hệ thống.",
+    "support": "Khách có thể nhắn nhân viên hoặc gọi dịch vụ ngay trên giao diện khách hàng.",
+}
 
 
 def load_knowledge_base() -> list[dict]:
@@ -120,6 +128,11 @@ def normalize(text: object) -> str:
         .replace("cay qua", "cay quá")
         .replace("an chay", "ăn chay")
         .replace("hai san", "hải sản")
+        .replace("do uong", "đồ uống")
+        .replace("nuoc", "nước")
+        .replace("goi nhan vien", "gọi nhân viên")
+        .replace("thanh toan", "thanh toán")
+        .replace("hoa don", "hóa đơn")
     )
 
 
@@ -161,17 +174,17 @@ def rebuild_search_index() -> int:
 
 def detect_intent(message: str) -> str:
     lower = normalize(message)
-    if any(term in lower for term in ["thanh toán", "bill", "hóa đơn", "qr thanh toán", "chuyển khoản"]):
+    if any(term in lower for term in ["thanh toán", "bill", "hóa đơn", "qr thanh toán", "chuyển khoản", "tính tiền"]):
         return "PAYMENT_HELP"
     if any(term in lower for term in ["gọi nhân viên", "nhân viên", "phục vụ", "hỗ trợ", "gọi phục vụ"]):
         return "CALL_STAFF"
-    if any(term in lower for term in ["giỏ hàng", "xóa món", "thêm món", "đặt món", "order"]):
+    if any(term in lower for term in ["giỏ hàng", "xóa món", "thêm món", "đặt món", "order", "đang có gì"]):
         return "CART_HELP"
-    if any(term in lower for term in ["tới đâu", "làm xong", "món của tôi", "đơn của tôi", "trạng thái đơn"]):
+    if any(term in lower for term in ["tới đâu", "làm xong", "món của tôi", "đơn của tôi", "trạng thái đơn", "chờ lâu", "ra chưa"]):
         return "ORDER_STATUS"
-    if any(term in lower for term in ["mở cửa", "giờ", "địa chỉ", "wifi", "xuất hóa đơn", "hủy món", "đổi món", "phí dịch vụ"]):
+    if any(term in lower for term in ["mở cửa", "giờ", "địa chỉ", "wifi", "xuất hóa đơn", "hủy món", "đổi món", "phí dịch vụ", "review", "đánh giá"]):
         return "FAQ"
-    if any(term in lower for term in ["món", "ăn", "uống", "combo", "cay", "chay", "dị ứng", "ngân sách", "người"]):
+    if any(term in lower for term in ["món", "ăn", "uống", "đồ uống", "nước", "bia", "combo", "cay", "chay", "dị ứng", "ngân sách", "người", "gợi ý", "recommend"]):
         if any(term in lower for term in ["giá", "bao nhiêu", "mấy tiền", "duoi", "dưới"]):
             return "MENU_PRICE"
         if any(term in lower for term in ["còn", "hết", "còn không", "hết chưa"]):
@@ -304,6 +317,8 @@ def tool_search_menu(message: str, items: list[dict], intent: str, session_id: s
     if intent in {"PROMOTION"}:
         promos = [item for item in available_items(items) if item.get("promotionalPrice")]
         return "get_promotions", promos[:5]
+    if intent == "MENU_AVAILABILITY":
+        return "get_menu_availability", rag_search(message, items, include_unavailable=True)
     return "get_menu_items", rag_search(message, items)
 
 
@@ -351,7 +366,7 @@ def format_money(value: object) -> str:
 
 def build_menu_context(items: list[dict], limit: int = 80) -> str:
     lines = []
-    for item in available_items(items)[:limit]:
+    for item in active_items(items)[:limit]:
         fields = [
             f"Tên: {item.get('name')}",
             f"Giá: {format_money(item.get('promotionalPrice') or item.get('price'))}",
@@ -437,6 +452,10 @@ def item_price(item: dict) -> float:
         return 0
 
 
+def active_items(items: list[dict]) -> list[dict]:
+    return [item for item in items if item.get("isActive", True) is not False]
+
+
 def is_drink(item: dict) -> bool:
     text = item_text(item)
     return item.get("type") == "DRINK" or any(term in text for term in ["đồ uống", "trà", "cà phê", "sinh tố", "nước ép", "latte"])
@@ -479,13 +498,14 @@ def item_score(query: str, item: dict) -> int:
     return score
 
 
-def rag_search(query: str, items: list[dict]) -> list[dict]:
+def rag_search(query: str, items: list[dict], include_unavailable: bool = False) -> list[dict]:
     lower = normalize(query)
     budget = extract_budget(lower)
     no_spicy = "không cay" in lower or "khong cay" in lower or "not spicy" in lower
     allergies = allergy_terms(lower)
     results: list[tuple[int, dict]] = []
-    for item in available_items(items):
+    candidates = active_items(items) if include_unavailable else available_items(items)
+    for item in candidates:
         price = item_price(item)
         text = item_text(item)
         if budget and price > budget:
@@ -500,7 +520,7 @@ def rag_search(query: str, items: list[dict]) -> list[dict]:
         if score > 0:
             results.append((score, item))
     if not results:
-        results = [(item_score(lower, item), item) for item in available_items(items)]
+        results = [(item_score(lower, item), item) for item in candidates]
     return [item for _, item in sorted(results, key=lambda row: (-row[0], item_price(row[1])))[:5]]
 
 
@@ -595,18 +615,24 @@ def has_llm_config() -> bool:
 
 
 def build_llm_prompt(message: str, context: str, intent: str, tool_data: dict[str, Any], session_id: str) -> str:
+    restaurant = json.dumps(RESTAURANT_PROFILE, ensure_ascii=False)
     return f"""
-Bạn là trợ lý AI nhà hàng của ProjectSOS.
-Nhiệm vụ: tư vấn món, combo, khẩu vị, ngân sách, dị ứng, hướng dẫn đặt món, gọi nhân viên, thanh toán và trả lời FAQ nhà hàng.
-Luôn trả lời bằng tiếng Việt, thân thiện, tự nhiên như nhân viên nhà hàng chuyên nghiệp, ngắn gọn nhưng không khô cứng.
-Chỉ trả lời trong phạm vi nhà hàng, menu, order, giỏ hàng, thanh toán và dịch vụ.
-Nếu khách hỏi ngoài phạm vi nhà hàng, hãy lịch sự nói bạn chỉ hỗ trợ dịch vụ nhà hàng và gợi ý khách chọn món/gọi nhân viên.
-Không bịa món không có trong menu. Chỉ gợi ý món còn hoạt động/còn món trong context.
-Nếu thiếu thông tin như ngân sách, số người, mức cay hoặc dị ứng, hãy hỏi lại 1 câu ngắn.
-Nếu không chắc, hãy khuyên khách bấm Nhắn nhân viên.
-Nếu TOOL DATA có draftReply/template, hãy viết lại tự nhiên hơn nhưng giữ nguyên dữ liệu thật, giá, trạng thái, số lượng.
+Bạn là nhân viên tư vấn AI của nhà hàng Bếp Mẹ Hương trong hệ thống ProjectSOS/Gọi Món.
+Vai trò của bạn giống một nhân viên phục vụ giỏi: hiểu menu, hỏi đúng nhu cầu, gợi ý món phù hợp và hướng dẫn khách thao tác trên màn hình.
+
+NGUYÊN TẮC BẮT BUỘC:
+- Luôn trả lời bằng tiếng Việt tự nhiên, thân thiện, ngắn gọn, có cảm giác đang nói với khách tại bàn.
+- Chỉ dùng dữ liệu có trong CONTEXT, TOOL DATA, FAQ và bộ nhớ hội thoại. Không bịa tên món, giá, trạng thái còn/hết, hóa đơn hoặc trạng thái đơn.
+- Chỉ gợi ý món còn hoạt động. Nếu món hết, được nói là hết món và gợi ý món thay thế đang còn.
+- Nếu khách hỏi về dị ứng, luôn nhắc khách xác nhận lại với nhân viên trước khi dùng món.
+- Nếu thiếu thông tin quan trọng như số người, ngân sách, mức cay hoặc món cần tránh, hãy hỏi lại đúng 1 câu ngắn.
+- Nếu câu hỏi ngoài phạm vi nhà hàng/menu/order/cart/thanh toán/dịch vụ, hãy lịch sự giới hạn phạm vi và gợi ý hỏi về món hoặc gọi nhân viên.
+- Nếu TOOL DATA có draftReply, hãy viết lại tự nhiên hơn nhưng phải giữ nguyên dữ liệu thật: tên món, giá, số lượng, trạng thái.
 
 Intent hiện tại: {intent}
+
+THÔNG TIN NHÀ HÀNG:
+{restaurant}
 
 CONTEXT RAG / MENU LIÊN QUAN:
 {context}
@@ -619,6 +645,11 @@ BỘ NHỚ HỘI THOẠI:
 
 FAQ NHÀ HÀNG:
 {build_faq_context()}
+
+Yêu cầu trả lời:
+- Nếu có gợi ý món: nêu 2-4 món tốt nhất, kèm giá và lý do ngắn.
+- Nếu có thao tác: nói rõ khách bấm nút nào trên giao diện.
+- Không kết thúc bằng câu chung chung như "tôi có thể giúp gì thêm" nếu không cần.
 """.strip()
 
 
@@ -682,7 +713,7 @@ def call_gemini(message: str, system_prompt: str) -> tuple[Optional[str], Option
             parsed = json.loads(response.read().decode("utf-8"))
         candidates = parsed.get("candidates") or []
         if not candidates:
-            return None
+            return None, "gemini_empty_candidates"
         parts = (((candidates[0] or {}).get("content") or {}).get("parts") or [])
         text = "\n".join(str(part.get("text", "")) for part in parts if part.get("text"))
         return (text.strip() or None), None
@@ -797,7 +828,14 @@ def build_tool_reply(req: ChatRequest, intent: str, tool_data: dict[str, Any], s
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "menuItems": len(MENU_ITEMS),
+        "knowledgeBase": len(KNOWLEDGE_BASE),
+        "llmConfigured": has_llm_config(),
+        "openaiConfigured": bool(os.getenv("OPENAI_API_KEY")),
+        "geminiConfigured": bool(os.getenv("GEMINI_API_KEY")),
+    }
 
 
 @app.post("/chat", response_model=ChatResponse)

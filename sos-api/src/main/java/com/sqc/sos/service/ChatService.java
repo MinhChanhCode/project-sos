@@ -40,6 +40,11 @@ public class ChatService {
     @Transactional
     public ChatResponse chat(ChatRequest request) {
         String sessionId = request.getSessionId() != null ? request.getSessionId() : UUID.randomUUID().toString();
+        String message = request.getMessage() == null ? "" : request.getMessage().trim();
+        if (message.length() > 600) {
+            message = message.substring(0, 600);
+            request.setMessage(message);
+        }
         ChatAiResult aiResult = callExternalAi(request, sessionId);
         String reply = aiResult.reply();
         String intent = aiResult.intent();
@@ -52,8 +57,8 @@ public class ChatService {
         String fallbackReason = aiResult.fallbackReason();
 
         if (reply == null || reply.isBlank()) {
-            reply = buildLocalRagReply(request.getMessage());
             intent = intent != null ? intent : detectLocalIntent(request.getMessage());
+            reply = buildLocalReply(request, sessionId, intent);
             usedTools = List.of("local_menu_rag");
             memoryUpdated = false;
             llmUsed = false;
@@ -113,13 +118,23 @@ public class ChatService {
 
     private Map<String, Object> buildAiContext(ChatRequest request, String sessionId) {
         Map<String, Object> context = new LinkedHashMap<>();
+        context.put("restaurant", Map.of(
+                "name", "Bếp Mẹ Hương",
+                "brand", "Gọi Món",
+                "openingHours", "08:00 - 22:00 mỗi ngày",
+                "serviceStyle", "Đặt món tại bàn bằng QR, nhân viên phục vụ tại bàn, bếp cập nhật trạng thái realtime",
+                "payment", "Bill có QR thanh toán demo; nhân viên xác nhận thanh toán trên hệ thống"
+        ));
         context.put("customerName", request.getCustomerName());
         context.put("sessionId", sessionId);
         context.put("tableId", request.getTableId());
         context.put("tableNumber", request.getTableNumber());
-        context.put("menu", menuItemRepository.findAll().stream().map(this::toMenuContext).toList());
+        List<MenuItem> activeMenu = menuItemRepository.findByIsActiveTrue();
+        context.put("menu", selectRelevantMenu(activeMenu, request.getMessage()).stream().map(this::toMenuContext).toList());
+        context.put("menuSummary", buildMenuSummary(activeMenu));
         context.put("history", chatHistoryRepository.findTop20BySessionIdOrderByCreatedAtDesc(sessionId).stream()
                 .sorted(Comparator.comparing(ChatHistory::getCreatedAt))
+                .limit(8)
                 .map(h -> Map.of(
                         "user", h.getUserMessage(),
                         "assistant", h.getBotResponse(),
@@ -149,6 +164,74 @@ public class ChatService {
         cartRepository.findBySessionIdAndIsActiveTrue(sessionId)
                 .ifPresent(cart -> context.put("cart", toCartContext(cart)));
         return context;
+    }
+
+    private List<MenuItem> selectRelevantMenu(List<MenuItem> items, String message) {
+        String lower = message == null ? "" : message.toLowerCase(Locale.ROOT);
+        BigDecimal maxBudget = extractBudget(lower);
+        boolean wantsDrink = lower.contains("uống") || lower.contains("nước") || lower.contains("bia") || lower.contains("cà phê") || lower.contains("trà");
+        boolean wantsCombo = lower.contains("combo") || lower.contains("set") || lower.contains("nhóm") || lower.contains("người");
+        boolean wantsVegetarian = lower.contains("chay");
+        boolean noSpicy = lower.contains("không cay") || lower.contains("khong cay") || lower.contains("ít cay");
+        List<String> allergies = detectAllergies(lower);
+
+        Comparator<MenuItem> byRelevance = Comparator
+                .comparingInt((MenuItem item) -> scoreMenuItem(item, lower, wantsDrink, wantsCombo, wantsVegetarian, noSpicy, maxBudget, allergies))
+                .reversed()
+                .thenComparing(MenuItem::getPrice, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(MenuItem::getId);
+
+        List<MenuItem> ranked = items.stream()
+                .filter(item -> Boolean.TRUE.equals(item.getIsActive()))
+                .sorted(byRelevance)
+                .limit(40)
+                .toList();
+        return ranked.isEmpty() ? items.stream().limit(40).toList() : ranked;
+    }
+
+    private int scoreMenuItem(MenuItem item, String query, boolean wantsDrink, boolean wantsCombo,
+                              boolean wantsVegetarian, boolean noSpicy, BigDecimal maxBudget, List<String> allergies) {
+        String text = String.join(" ",
+                safe(item.getName()),
+                safe(item.getDescription()),
+                item.getCategory() != null ? safe(item.getCategory().getName()) : "",
+                safe(item.getType()),
+                safe(item.getTasteTags()),
+                safe(item.getIngredients()),
+                safe(item.getAllergens()),
+                safe(item.getSuitableFor()),
+                safe(item.getPairing())
+        ).toLowerCase(Locale.ROOT);
+        int score = Boolean.TRUE.equals(item.getIsAvailable()) ? 5 : -20;
+        for (String token : query.split("[^\\p{L}\\p{N}]+")) {
+            if (token.length() > 1 && text.contains(token)) score += 3;
+        }
+        if (wantsDrink && (text.contains("đồ uống") || text.contains("nước") || text.contains("trà") || text.contains("cà phê") || "DRINK".equalsIgnoreCase(item.getType()))) score += 10;
+        if (wantsCombo && (text.contains("combo") || "COMBO".equalsIgnoreCase(item.getType()))) score += 10;
+        if (wantsVegetarian && Boolean.TRUE.equals(item.getIsVegetarian())) score += 10;
+        if (noSpicy && (item.getSpicyLevel() == null || item.getSpicyLevel() == 0)) score += 8;
+        if (maxBudget != null && item.getPrice() != null && item.getPrice().compareTo(maxBudget) <= 0) score += 6;
+        for (String allergy : allergies) {
+            if (text.contains(allergy)) score -= 30;
+        }
+        return score;
+    }
+
+    private Map<String, Object> buildMenuSummary(List<MenuItem> items) {
+        Map<String, Long> byCategory = items.stream()
+                .collect(Collectors.groupingBy(
+                        item -> item.getCategory() != null ? item.getCategory().getName() : "Khác",
+                        LinkedHashMap::new,
+                        Collectors.counting()
+                ));
+        long available = items.stream().filter(item -> Boolean.TRUE.equals(item.getIsAvailable())).count();
+        long promotional = items.stream().filter(item -> item.getPromotionalPrice() != null).count();
+        return Map.of(
+                "totalItems", items.size(),
+                "availableItems", available,
+                "promotionalItems", promotional,
+                "categories", byCategory
+        );
     }
 
     private Map<String, Object> toMenuContext(MenuItem item) {
@@ -209,6 +292,56 @@ public class ChatService {
         }
     }
 
+    private String buildLocalReply(ChatRequest request, String sessionId, String intent) {
+        if ("ORDER_STATUS".equals(intent)) {
+            UUID tableUuid = parseUuid(request.getTableId());
+            if (tableUuid != null) {
+                try {
+                    TableDetailResponse table = tableQueryService.getTableDetail(tableUuid);
+                    List<TableOrderItemSummaryView> items = table.getSessionItems() == null ? List.of() : table.getSessionItems().stream()
+                            .map(i -> new TableOrderItemSummaryView(i.getMenuItemName(), i.getPendingQuantity(), i.getPreparingQuantity(), i.getCompletedQuantity(), i.getServedQuantity()))
+                            .toList();
+                    if (!items.isEmpty()) {
+                        StringBuilder sb = new StringBuilder("Đơn của bàn ").append(request.getTableNumber() != null ? request.getTableNumber() : table.getTableName()).append(" hiện tại:\n");
+                        for (TableOrderItemSummaryView item : items.stream().limit(6).toList()) {
+                            sb.append("- ").append(item.name()).append(": ")
+                                    .append(item.pending()).append(" chờ bếp, ")
+                                    .append(item.preparing()).append(" đang làm, ")
+                                    .append(item.ready()).append(" sẵn sàng, ")
+                                    .append(item.served()).append(" đã phục vụ\n");
+                        }
+                        return sb.toString().trim();
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            return "Mình chưa thấy đơn đang xử lý cho bàn này. Nếu bạn vừa đặt món, hãy chờ vài giây hoặc nhắn nhân viên kiểm tra giúp.";
+        }
+        if ("CART_HELP".equals(intent)) {
+            Optional<Cart> cart = cartRepository.findBySessionIdAndIsActiveTrue(sessionId);
+            if (cart.isPresent() && !cart.get().getActiveCartItems().isEmpty()) {
+                Map<String, Object> data = toCartContext(cart.get());
+                StringBuilder sb = new StringBuilder("Giỏ hàng của bạn đang có:\n");
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> items = (List<Map<String, Object>>) data.get("items");
+                for (Map<String, Object> item : items.stream().limit(8).toList()) {
+                    sb.append("- ").append(item.get("name")).append(" x").append(item.get("quantity"))
+                            .append(" - ").append(item.get("subtotal")).append("đ\n");
+                }
+                sb.append("Tổng tạm tính: ").append(data.get("totalAmount")).append("đ");
+                return sb.toString();
+            }
+            return "Giỏ hàng của bạn hiện đang trống. Bạn chọn món trong menu rồi bấm thêm vào giỏ nhé.";
+        }
+        if ("PAYMENT_HELP".equals(intent)) {
+            return "Bạn bấm Yêu cầu thanh toán để xem bill chi tiết và QR thanh toán demo. Nhân viên sẽ xác nhận thanh toán trên hệ thống.";
+        }
+        if ("CALL_STAFF".equals(intent)) {
+            return "Bạn bấm Nhắn nhân viên hoặc Gọi dịch vụ ở góc dưới màn hình. Tin nhắn sẽ gửi đúng bàn hiện tại của bạn.";
+        }
+        return buildLocalRagReply(request.getMessage());
+    }
+
     private String buildLocalRagReply(String message) {
         String lower = message.toLowerCase(Locale.ROOT);
         List<MenuItem> items = menuItemRepository.findAll().stream()
@@ -265,6 +398,29 @@ public class ChatService {
         if (lower.contains("nhân viên") || lower.contains("phục vụ")) return "CALL_STAFF";
         if (lower.contains("món") || lower.contains("ăn") || lower.contains("uống")) return "MENU_RECOMMENDATION";
         return "FAQ";
+    }
+
+    private List<String> detectAllergies(String lower) {
+        List<String> allergies = new ArrayList<>();
+        for (String term : List.of("hải sản", "hai san", "sữa", "sua", "đậu phộng", "dau phong", "trứng", "trung", "bò", "bo", "gà", "ga")) {
+            if (lower.contains(term) && (lower.contains("dị ứng") || lower.contains("di ung") || lower.contains("không ăn") || lower.contains("khong an") || lower.contains("tránh"))) {
+                allergies.add(term);
+            }
+        }
+        return allergies;
+    }
+
+    private String safe(String value) {
+        return value == null ? "" : value;
+    }
+
+    private record TableOrderItemSummaryView(String name, Integer pending, Integer preparing, Integer ready, Integer served) {
+        TableOrderItemSummaryView {
+            pending = pending == null ? 0 : pending;
+            preparing = preparing == null ? 0 : preparing;
+            ready = ready == null ? 0 : ready;
+            served = served == null ? 0 : served;
+        }
     }
 
     private record ChatAiResult(

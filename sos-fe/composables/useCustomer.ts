@@ -299,7 +299,6 @@ export const useCustomer = () => {
     }
 
     try {
-      console.log('Attempting to resolve tableId from tableNumber:', tableNumber.value)
       const tables = await TableApi.list()
       const tableList = Array.isArray((tables as any)?.data) 
         ? (tables as any).data 
@@ -331,7 +330,6 @@ export const useCustomer = () => {
       if (foundTable) {
         tableId.value = String(foundTable.id)
         tableNumber.value = String(foundTable.name || foundTable.number || tableNumber.value || "")
-        console.log('Successfully resolved tableId:', tableId.value)
       } else {
         throw new Error(`Không tìm thấy bàn với số: ${tableNumber.value}. Vui lòng kiểm tra lại URL hoặc liên hệ nhân viên.`)
       }
@@ -373,10 +371,9 @@ export const useCustomer = () => {
       
       cartStore.setFromApiItems(items)
     } catch (error: any) {
-      console.error('Error in ensureCart:', error)
       // Cải thiện error message cho connection errors
       if (error?.message?.includes('ERR_CONNECTION_REFUSED') || error?.message?.includes('Failed to fetch')) {
-        throw new Error('Không thể kết nối đến server. Vui lòng đảm bảo backend API đang chạy tại http://localhost:8080')
+        throw new Error('Không thể kết nối đến hệ thống đặt món. Vui lòng quét lại mã QR hoặc gọi nhân viên hỗ trợ.')
       }
       throw new Error(error?.message || 'Failed to ensure cart. Please try again.')
     }

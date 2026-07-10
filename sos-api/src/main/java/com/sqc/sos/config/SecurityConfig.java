@@ -48,6 +48,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/images/view/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/v1/reviews").permitAll()
                     .requestMatchers("/api/v1/chat/**").permitAll()
+                    .requestMatchers("/api/ai/chat/**").permitAll()
                     .requestMatchers("/api/v1/customer-sessions/**").permitAll()
                     .requestMatchers("/api/v1/staff-chat/**").permitAll()
                     .requestMatchers("/api/v1/qr-codes/token/**").permitAll()

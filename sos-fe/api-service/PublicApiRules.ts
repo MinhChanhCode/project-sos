@@ -14,6 +14,7 @@ const PUBLIC_API_RULES: PublicApiRule[] = [
   { method: "ANY", pattern: /^\/api\/v1\/customer-sessions(?:\/|\?|$)/ },
   { method: "ANY", pattern: /^\/api\/v1\/staff-chat(?:\/|\?|$)/ },
   { method: "ANY", pattern: /^\/api\/v1\/chat(?:\/|\?|$)/ },
+  { method: "ANY", pattern: /^\/api\/ai\/chat(?:\/|\?|$)/ },
   { method: "GET", pattern: /^\/api\/v1\/qr-codes\/token(?:\/|\?|$)/ },
   { method: "POST", pattern: /^\/api\/v1\/invoices\/public\/session(?:\/|\?|$)/ },
   { method: "POST", pattern: /^\/api\/v1\/reviews(?:\/|\?|$)/ },
