@@ -522,8 +522,19 @@ def is_generic_menu_reply(reply: Optional[str]) -> bool:
 def should_keep_deterministic_reply(intent: str, deterministic_reply: Optional[str], llm_reply: Optional[str]) -> bool:
     if not deterministic_reply:
         return False
+    strict_menu_intents = {
+        "BUDGET_MENU", "ALLERGY_SAFE", "NO_SPICY", "LOW_SPICY", "KIDS_FRIENDLY",
+        "VEGETARIAN", "MENU_AVAILABILITY", "CATEGORY_QUERY", "DRINK_PAIRING"
+    }
+    if intent in strict_menu_intents and (
+        "mình chưa thấy" in normalize(deterministic_reply)
+        or "không thấy thành phần cần tránh" in normalize(deterministic_reply)
+        or "dưới" in normalize(deterministic_reply)
+        or "dị ứng" in normalize(deterministic_reply)
+    ):
+        return True
     if intent not in {"FAQ", "PAYMENT_HELP", "CALL_STAFF", "CART_HELP", "ORDER_STATUS", "OUT_OF_SCOPE"}:
-        return False
+        return is_generic_menu_reply(llm_reply)
     return is_generic_menu_reply(llm_reply)
 
 
@@ -610,10 +621,56 @@ def wants_rich_flavor(text: str) -> bool:
 def allergy_terms(text: str) -> list[str]:
     lower = normalize(text)
     terms = []
-    for term in ["hải sản", "sữa", "đậu phộng", "trứng", "bò", "gà"]:
-        if term in lower and any(prefix in lower for prefix in ["dị ứng", "di ung", "không ăn", "khong an", "tránh", "tranh"]):
+    avoidance_prefixes = [
+        "dị ứng", "di ung", "không ăn", "khong an", "tránh", "tranh",
+        "không có", "khong co", "không chứa", "khong chua", "không dùng", "khong dung",
+        "không muốn", "khong muon", "loại bỏ", "loai bo"
+    ]
+    for term in ["hải sản", "sữa", "đậu phộng", "trứng", "bò", "gà", "tôm", "mực", "cua", "cá", "ốc"]:
+        if term in lower and any(prefix in lower for prefix in avoidance_prefixes):
             terms.append(term)
     return terms
+
+
+def contains_restricted_term(item: dict, terms: list[str]) -> bool:
+    text = item_text(item)
+    if "hải sản" in terms and any(term in text for term in ["hải sản", "tôm", "mực", "cua", "cá", "ốc", "nghêu", "sò"]):
+        return True
+    return any(term in text for term in terms)
+
+
+def item_reason_from_description(item: dict, query: str, intent: str) -> str:
+    lower = normalize(query)
+    text = item_text(item)
+    reasons = []
+    price = item_price(item)
+    budget = extract_budget(lower)
+    allergies = allergy_terms(lower)
+    if budget and price <= budget:
+        reasons.append(f"dưới {format_money(budget)}")
+    if wants_no_spicy(lower) and int(item.get("spicyLevel") or 0) == 0:
+        reasons.append("mô tả/độ cay phù hợp không cay")
+    elif wants_low_spicy(lower) and int(item.get("spicyLevel") or 0) <= 1:
+        reasons.append("ít cay")
+    if wants_kids_friendly(lower):
+        if int(item.get("spicyLevel") or 0) == 0:
+            reasons.append("không cay, hợp trẻ em hơn")
+        if any(term in text for term in ["dễ ăn", "thanh nhẹ", "trái cây", "sữa", "nước ép", "sinh tố"]):
+            reasons.append("mô tả dễ ăn/thanh nhẹ")
+    if wants_light_food(lower) and any(term in text for term in ["thanh nhẹ", "nhẹ", "healthy", "rau", "salad", "gỏi", "ít dầu"]):
+        reasons.append("mô tả nhẹ bụng")
+    if wants_filling_food(lower) and (is_main(item) or is_combo(item)):
+        reasons.append("phù hợp ăn no")
+    if allergies and not contains_restricted_term(item, allergies):
+        reasons.append("không thấy thành phần cần tránh trong mô tả/nguyên liệu")
+    if wants_drink_pairing(lower) and is_drink(item):
+        pairing = as_text(item.get("pairing"))
+        reasons.append(f"hợp dùng kèm {pairing}" if pairing else "đồ uống dùng kèm phù hợp")
+    if item.get("tasteTags"):
+        reasons.append(as_text(item.get("tasteTags")))
+    if item.get("suitableFor"):
+        reasons.append(as_text(item.get("suitableFor")))
+    return "; ".join(reasons[:3])
 
 
 def item_price(item: dict) -> float:
@@ -738,7 +795,7 @@ def rag_search(query: str, items: list[dict], include_unavailable: bool = False)
             continue
         if wants_vegetarian(lower) and item.get("isVegetarian") is not True:
             continue
-        if any(term in text for term in allergies):
+        if contains_restricted_term(item, allergies):
             continue
         score = item_score(lower, item)
         if score > 0:
@@ -748,7 +805,15 @@ def rag_search(query: str, items: list[dict], include_unavailable: bool = False)
             item for item in candidates
             if (not category or matches_category_kind(item, category))
             and (not drink_pairing or is_drink(item))
-        ] or candidates
+            and (not budget or item_price(item) <= budget)
+            and (not no_spicy or int(item.get("spicyLevel") or 0) <= 0)
+            and (not low_spicy or int(item.get("spicyLevel") or 0) <= 1)
+            and (not wants_vegetarian(lower) or item.get("isVegetarian") is True)
+            and not contains_restricted_term(item, allergies)
+        ]
+        if not fallback_candidates and (budget or allergies or no_spicy or low_spicy or wants_vegetarian(lower)):
+            return []
+        fallback_candidates = fallback_candidates or candidates
         results = [(item_score(lower, item), item) for item in fallback_candidates]
     return [item for _, item in sorted(results, key=lambda row: (-row[0], item_price(row[1])))[:8]]
 
@@ -1075,11 +1140,25 @@ def build_tool_reply(req: ChatRequest, intent: str, tool_data: dict[str, Any], s
         return "Bạn có thể bấm nút Nhắn nhân viên hoặc Gọi dịch vụ trên màn hình. Mình cũng khuyên bạn nhắn nhân viên để được hỗ trợ trực tiếp tại bàn."
     if intent == "PAYMENT_HELP":
         return "Bạn hãy bấm Yêu cầu thanh toán để xem bill và QR thanh toán. Nhân viên sẽ xác nhận sau khi bạn thanh toán."
+    menu_filter_intents = {
+        "MENU_AVAILABILITY", "MENU_PRICE", "BUDGET_MENU", "CATEGORY_QUERY", "MENU_RECOMMENDATION",
+        "COMBO", "BEST_SELLER", "PROMOTION", "KIDS_FRIENDLY", "NO_SPICY", "LOW_SPICY",
+        "VEGETARIAN", "ALLERGY_SAFE", "DRINK_PAIRING"
+    }
+    if intent in menu_filter_intents and not suggested_items:
+        if allergy_terms(req.message):
+            return "Mình chưa thấy món nào trong thực đơn hiện tại đáp ứng điều kiện tránh dị ứng đó dựa trên mô tả/nguyên liệu. Bạn nên nhắn nhân viên để xác nhận an toàn trước khi gọi món."
+        budget = extract_budget(req.message)
+        if budget:
+            return f"Mình chưa thấy món nào phù hợp dưới {format_money(budget)} trong thực đơn hiện tại. Bạn có thể tăng ngân sách một chút hoặc hỏi nhân viên món thay thế."
+        return "Mình chưa thấy món nào phù hợp với điều kiện đó trong thực đơn hiện tại. Bạn có thể đổi tiêu chí như ngân sách, mức cay hoặc danh mục món."
     if intent in {"MENU_AVAILABILITY", "MENU_PRICE", "BUDGET_MENU", "CATEGORY_QUERY"} and suggested_items:
-        lines = ["Mình tìm thấy các món phù hợp trong menu:"]
+        lines = ["Mình tìm thấy các món phù hợp trong menu hiện tại:"]
         for item in suggested_items[:5]:
             status = "còn món" if item.get("isAvailable", True) is not False else "hết món"
-            lines.append(f"- {item.get('name')} - {format_money(item.get('promotionalPrice') or item.get('price'))} ({status})")
+            reason = item_reason_from_description(item, req.message, intent)
+            reason_text = f" - {reason}" if reason else ""
+            lines.append(f"- {item.get('name')} - {format_money(item.get('promotionalPrice') or item.get('price'))} ({status}){reason_text}")
         return "\n".join(lines)
     if intent in {
         "MENU_RECOMMENDATION", "COMBO", "BEST_SELLER", "PROMOTION", "KIDS_FRIENDLY",
@@ -1109,14 +1188,10 @@ def build_tool_reply(req: ChatRequest, intent: str, tool_data: dict[str, Any], s
         for item in suggested_items[:6]:
             price = item_price(item)
             total += price
-            reason_parts = []
-            if item.get("spicyLevel") is not None:
-                reason_parts.append(f"độ cay {item.get('spicyLevel')}/3")
-            if item.get("tasteTags"):
-                reason_parts.append(as_text(item.get("tasteTags")))
-            if item.get("suitableFor"):
-                reason_parts.append(as_text(item.get("suitableFor")))
-            reason = f" - {'; '.join(reason_parts[:3])}" if reason_parts else ""
+            reason = item_reason_from_description(item, req.message, intent)
+            if not reason and item.get("spicyLevel") is not None:
+                reason = f"độ cay {item.get('spicyLevel')}/3"
+            reason = f" - {reason}" if reason else ""
             lines.append(f"- {item.get('name')} - {format_money(price)}{reason}")
         if intent == "COMBO" or extract_people(lower):
             lines.append(f"Tổng gợi ý khoảng {format_money(total)}. Bạn có thể bấm thêm từng món vào giỏ.")
