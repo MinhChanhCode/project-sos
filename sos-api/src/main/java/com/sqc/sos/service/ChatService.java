@@ -58,7 +58,7 @@ public class ChatService {
         String fallbackReason = aiResult.fallbackReason();
         String localIntent = detectLocalIntent(request.getMessage());
 
-        if (shouldOverrideAiReply(localIntent, reply)) {
+        if (shouldUseLocalReply(localIntent, intent, reply)) {
             intent = localIntent;
             reply = buildLocalReply(request, sessionId, localIntent);
             suggestedItems = List.of();
@@ -99,14 +99,29 @@ public class ChatService {
                 .build();
     }
 
-    private boolean shouldOverrideAiReply(String localIntent, String reply) {
-        if (!Set.of("FAQ", "OUT_OF_SCOPE", "PAYMENT_HELP", "CALL_STAFF", "CART_HELP", "ORDER_STATUS").contains(localIntent)) {
+    private boolean shouldUseLocalReply(String localIntent, String aiIntent, String reply) {
+        if (!isProtectedIntent(localIntent)) {
             return false;
+        }
+        if (isMenuIntent(aiIntent)) {
+            return true;
         }
         if (reply == null || reply.isBlank()) {
             return false;
         }
         return isGenericMenuReply(reply);
+    }
+
+    private boolean isProtectedIntent(String intent) {
+        return Set.of("FAQ", "OUT_OF_SCOPE", "PAYMENT_HELP", "CALL_STAFF", "CART_HELP", "ORDER_STATUS").contains(intent);
+    }
+
+    private boolean isMenuIntent(String intent) {
+        return Set.of(
+                "MENU_RECOMMENDATION", "MENU_PRICE", "MENU_AVAILABILITY", "COMBO", "BEST_SELLER",
+                "PROMOTION", "BUDGET_MENU", "CATEGORY_QUERY", "KIDS_FRIENDLY", "NO_SPICY",
+                "LOW_SPICY", "VEGETARIAN", "ALLERGY_SAFE", "DRINK_PAIRING"
+        ).contains(intent);
     }
 
     private boolean isGenericMenuReply(String reply) {

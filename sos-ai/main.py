@@ -229,6 +229,12 @@ def detect_intent(message: str) -> str:
         return "CART_HELP"
     if any(term in lower for term in ["tới đâu", "làm xong", "món của tôi", "đơn của tôi", "trạng thái đơn", "chờ lâu", "ra chưa"]):
         return "ORDER_STATUS"
+    if any(term in lower for term in ["còn không", "hết chưa", "còn món", "hết món"]):
+        return "MENU_AVAILABILITY"
+    if any(term in lower for term in ["duoi", "dưới"]) or extract_budget(lower):
+        return "BUDGET_MENU"
+    if any(term in lower for term in ["giá", "bao nhiêu tiền", "mấy tiền", "bao nhiêu"]):
+        return "MENU_PRICE"
     if any(term in lower for term in ["mở cửa", "giờ", "địa chỉ", "địa điểm", "ở đâu", "vi tri", "vị trí", "wifi", "xuất hóa đơn", "hủy món", "đổi món", "phí dịch vụ", "review", "đánh giá"]):
         return "FAQ"
     if any(term in lower for term in [
@@ -245,8 +251,10 @@ def detect_intent(message: str) -> str:
             return "PROMOTION"
         if any(term in lower for term in ["combo", "set", "nhóm", "gia đình"]) or extract_people(lower):
             return "COMBO"
-        if any(term in lower for term in ["giá", "bao nhiêu", "mấy tiền", "duoi", "dưới"]):
+        if any(term in lower for term in ["duoi", "dưới"]) or extract_budget(lower):
             return "BUDGET_MENU"
+        if any(term in lower for term in ["giá", "bao nhiêu", "mấy tiền"]):
+            return "MENU_PRICE"
         if wants_kids_friendly(lower):
             return "KIDS_FRIENDLY"
         if wants_no_spicy(lower):
@@ -573,6 +581,23 @@ def should_keep_deterministic_reply(intent: str, deterministic_reply: Optional[s
     if intent in protected_intents:
         return True
     return is_generic_menu_reply(llm_reply)
+
+
+def is_menu_intent(intent: str) -> bool:
+    return intent in {
+        "MENU_RECOMMENDATION", "MENU_PRICE", "MENU_AVAILABILITY", "COMBO", "BEST_SELLER",
+        "PROMOTION", "BUDGET_MENU", "CATEGORY_QUERY", "KIDS_FRIENDLY", "NO_SPICY",
+        "LOW_SPICY", "VEGETARIAN", "ALLERGY_SAFE", "DRINK_PAIRING"
+    }
+
+
+def llm_reply_uses_menu_data(reply: Optional[str], suggested_items: list[dict]) -> bool:
+    if not reply:
+        return False
+    if not suggested_items:
+        return True
+    lower = normalize(reply)
+    return any(normalize(item.get("name")) in lower for item in suggested_items if item.get("name"))
 
 
 def extract_budget(text: str) -> Optional[int]:
@@ -1291,12 +1316,7 @@ def chat(req: ChatRequest):
     req.session_id = session_id
     intent = detect_intent(req.message)
     all_menu_items = get_context_menu(req.context)
-    menu_required_intents = {
-        "MENU_RECOMMENDATION", "MENU_PRICE", "MENU_AVAILABILITY", "COMBO", "BEST_SELLER",
-        "PROMOTION", "BUDGET_MENU", "CATEGORY_QUERY", "KIDS_FRIENDLY", "NO_SPICY",
-        "LOW_SPICY", "VEGETARIAN", "ALLERGY_SAFE", "DRINK_PAIRING"
-    }
-    if intent in menu_required_intents and not all_menu_items:
+    if is_menu_intent(intent) and not all_menu_items:
         reply = "Mình chưa có dữ liệu thực đơn hiện tại để tư vấn chính xác. Vui lòng đồng bộ menu từ hệ thống quản lý rồi hỏi lại nhé."
         return ChatResponse(
             session_id=session_id,
@@ -1327,7 +1347,9 @@ def chat(req: ChatRequest):
         "totalItems": len(active_items(all_menu_items)),
         "availableItems": len(available_items(all_menu_items)),
     }
-    needs_llm = has_llm_config() and intent != "OUT_OF_SCOPE"
+    # Deterministic answers are built from real backend/database context.
+    # Do not let Gemini/OpenAI rewrite them, because that is where generic repeated answers creep in.
+    needs_llm = has_llm_config() and intent != "OUT_OF_SCOPE" and deterministic_reply is None
     reply = deterministic_reply
     llm_used = False
     llm_provider = None
@@ -1338,6 +1360,10 @@ def chat(req: ChatRequest):
             if should_keep_deterministic_reply(intent, deterministic_reply, llm_reply):
                 reply = deterministic_reply
                 fallback_reason = "kept_deterministic_reply_over_generic_menu_llm"
+            elif is_menu_intent(intent) and not llm_reply_uses_menu_data(llm_reply, suggested_items):
+                reply = build_tool_reply(req, intent, tool_data, suggested_items) or build_rag_reply(req.message)
+                llm_used = False
+                fallback_reason = "discarded_llm_reply_not_grounded_in_menu"
             else:
                 reply = llm_reply
                 llm_used = True

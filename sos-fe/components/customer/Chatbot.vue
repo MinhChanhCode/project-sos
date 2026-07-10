@@ -135,6 +135,7 @@ const sendQuick = async (text: string) => {
 const sendMessage = async (text: string) => {
   messages.value.push({ role: "user", text });
   input.value = "";
+  lastSuggestedItems.value = [];
   loading.value = true;
   try {
     const res = await chatApi.send({
@@ -143,8 +144,8 @@ const sendMessage = async (text: string) => {
       tableNumber: props.tableNumber,
       customerName: props.customerName,
       message: text,
-    }) as { reply?: string; suggestedItems?: any[]; actions?: any[]; llmUsed?: boolean; llmProvider?: string; fallbackReason?: string };
-    lastSuggestedItems.value = Array.isArray(res.suggestedItems) ? res.suggestedItems : [];
+    }) as { reply?: string; intent?: string; suggestedItems?: any[]; actions?: any[]; llmUsed?: boolean; llmProvider?: string; fallbackReason?: string };
+    lastSuggestedItems.value = isMenuIntent(res.intent) && Array.isArray(res.suggestedItems) ? res.suggestedItems : [];
     aiStatus.value = res.llmUsed
       ? `Đang dùng ${res.llmProvider === 'gemini' ? 'Gemini' : res.llmProvider === 'openai' ? 'OpenAI' : 'AI'} + dữ liệu menu thật`
       : res.fallbackReason
@@ -164,6 +165,24 @@ const sendMessage = async (text: string) => {
 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value || 0);
+
+const isMenuIntent = (intent?: string) =>
+  [
+    "MENU_RECOMMENDATION",
+    "MENU_PRICE",
+    "MENU_AVAILABILITY",
+    "COMBO",
+    "BEST_SELLER",
+    "PROMOTION",
+    "BUDGET_MENU",
+    "CATEGORY_QUERY",
+    "KIDS_FRIENDLY",
+    "NO_SPICY",
+    "LOW_SPICY",
+    "VEGETARIAN",
+    "ALLERGY_SAFE",
+    "DRINK_PAIRING",
+  ].includes(String(intent || ""));
 
 const normalizeSuggestedItem = (item: any) => ({
   id: Number(item.id),
