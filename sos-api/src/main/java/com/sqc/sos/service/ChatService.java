@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -55,9 +56,22 @@ public class ChatService {
         boolean llmUsed = aiResult.llmUsed();
         String llmProvider = aiResult.llmProvider();
         String fallbackReason = aiResult.fallbackReason();
+        String localIntent = detectLocalIntent(request.getMessage());
+
+        if (shouldOverrideAiReply(localIntent, reply)) {
+            intent = localIntent;
+            reply = buildLocalReply(request, sessionId, localIntent);
+            suggestedItems = List.of();
+            actions = List.of();
+            usedTools = List.of("sos_api_local_faq_guard");
+            memoryUpdated = false;
+            llmUsed = false;
+            llmProvider = null;
+            fallbackReason = "sos_api_overrode_generic_menu_reply";
+        }
 
         if (reply == null || reply.isBlank()) {
-            intent = intent != null ? intent : detectLocalIntent(request.getMessage());
+            intent = intent != null ? intent : localIntent;
             reply = buildLocalReply(request, sessionId, intent);
             usedTools = List.of("local_menu_rag");
             memoryUpdated = false;
@@ -83,6 +97,20 @@ public class ChatService {
                 .fallbackReason(fallbackReason)
                 .historyId(history.getId())
                 .build();
+    }
+
+    private boolean shouldOverrideAiReply(String localIntent, String reply) {
+        if (!"FAQ".equals(localIntent) && !"OUT_OF_SCOPE".equals(localIntent)) {
+            return false;
+        }
+        if (reply == null || reply.isBlank()) {
+            return false;
+        }
+        String normalizedReply = normalizeSearchText(reply);
+        return normalizedReply.startsWith("dua tren menu")
+                || normalizedReply.contains("toi goi y")
+                || normalizedReply.contains("goi y mon")
+                || normalizedReply.contains("dua tren du lieu menu");
     }
 
     public List<ChatHistory> getHistory(String sessionId) {
@@ -339,7 +367,45 @@ public class ChatService {
         if ("CALL_STAFF".equals(intent)) {
             return "Bạn bấm Nhắn nhân viên hoặc Gọi dịch vụ ở góc dưới màn hình. Tin nhắn sẽ gửi đúng bàn hiện tại của bạn.";
         }
+        if ("FAQ".equals(intent)) {
+            return buildLocalFaqReply(request.getMessage());
+        }
+        if ("OUT_OF_SCOPE".equals(intent)) {
+            return "Mình là trợ lý của nhà hàng Bếp Mẹ Hương. Mình có thể hỗ trợ chọn món, xem giỏ hàng, kiểm tra trạng thái món, gọi nhân viên, thanh toán và các thông tin như giờ mở cửa, wifi, hóa đơn.";
+        }
         return buildLocalRagReply(request.getMessage());
+    }
+
+    private String buildLocalFaqReply(String message) {
+        String lower = normalizeSearchText(message);
+        if (containsAny(lower, "xin chao", "hello", "hi", "chao ban")) {
+            return "Xin chào! Mình có thể tư vấn món ăn, kiểm tra giỏ hàng, xem trạng thái món, gọi nhân viên, hỗ trợ thanh toán hoặc trả lời thông tin nhà hàng.";
+        }
+        if (containsAny(lower, "mo cua", "gio mo cua", "may gio", "thoi gian", "open", "dong cua")) {
+            return "Nhà hàng mở cửa từ 8:00 đến 22:00 mỗi ngày. Nếu bạn cần hỗ trợ ngoài giờ, hãy nhắn nhân viên trên màn hình đặt món.";
+        }
+        if (containsAny(lower, "dia chi", "o dau", "vi tri", "address")) {
+            return "Nhà hàng ở 30 Trần Quang Diệu, Quy Nhơn, Bình Định.";
+        }
+        if (containsAny(lower, "wifi", "mat khau wifi", "password wifi")) {
+            return "Bạn vui lòng nhắn nhân viên trên màn hình hoặc hỏi trực tiếp nhân viên để được cung cấp wifi của nhà hàng.";
+        }
+        if (containsAny(lower, "xuat hoa don", "invoice", "hoa don do", "hoa don vat")) {
+            return "Bạn có thể yêu cầu nhân viên hỗ trợ xuất hóa đơn. Bill trên hệ thống có danh sách món, số lượng, đơn giá và tổng tiền.";
+        }
+        if (containsAny(lower, "huy mon", "doi mon", "cancel")) {
+            return "Nếu món chưa được bếp xử lý, bạn hãy nhắn nhân viên ngay để được hỗ trợ hủy hoặc đổi món. Khi món đã chế biến, nhà hàng có thể không hỗ trợ hủy.";
+        }
+        if (containsAny(lower, "phi dich vu", "service fee", "giam gia", "khuyen mai")) {
+            return "Nếu có phí dịch vụ, giảm giá hoặc khuyến mãi, bill sẽ hiển thị rõ trước khi thanh toán. Bạn cũng có thể nhắn nhân viên để xác nhận thêm.";
+        }
+        if (containsAny(lower, "danh gia", "review", "phan hoi")) {
+            return "Sau khi dùng bữa, bạn có thể gửi đánh giá trên màn hình khách hàng để nhà hàng cải thiện chất lượng phục vụ.";
+        }
+        if (containsAny(lower, "gop y", "khieu nai", "phan anh")) {
+            return "Bạn có thể nhắn nhân viên ngay trên màn hình đặt món để góp ý hoặc phản ánh. Nhân viên sẽ nhận thông báo theo đúng bàn của bạn.";
+        }
+        return "Mình có thể trả lời thông tin nhà hàng như giờ mở cửa, địa chỉ, wifi, hóa đơn, thanh toán, gọi nhân viên hoặc trạng thái món. Bạn muốn hỏi phần nào?";
     }
 
     private String buildLocalRagReply(String message) {
@@ -391,13 +457,47 @@ public class ChatService {
     }
 
     private String detectLocalIntent(String message) {
-        String lower = message == null ? "" : message.toLowerCase(Locale.ROOT);
-        if (lower.contains("thanh toán") || lower.contains("bill")) return "PAYMENT_HELP";
-        if (lower.contains("đơn") || lower.contains("tới đâu")) return "ORDER_STATUS";
-        if (lower.contains("giỏ") || lower.contains("thêm món")) return "CART_HELP";
-        if (lower.contains("nhân viên") || lower.contains("phục vụ")) return "CALL_STAFF";
-        if (lower.contains("món") || lower.contains("ăn") || lower.contains("uống")) return "MENU_RECOMMENDATION";
+        String lower = normalizeSearchText(message);
+        if (containsAny(lower, "thanh toan", "bill", "qr thanh toan", "chuyen khoan", "tinh tien")) return "PAYMENT_HELP";
+        if (containsAny(lower, "don cua toi", "mon cua toi", "toi dau", "ra chua", "cho lau", "trang thai don")) return "ORDER_STATUS";
+        if (containsAny(lower, "gio hang", "cart", "them mon", "xoa mon", "dat mon")) return "CART_HELP";
+        if (containsAny(lower, "nhan vien", "phuc vu", "ho tro", "goi phuc vu")) return "CALL_STAFF";
+        if (containsAny(lower, "mo cua", "gio mo cua", "may gio", "dia chi", "wifi", "xuat hoa don", "huy mon", "doi mon", "phi dich vu", "danh gia", "review", "khieu nai")) return "FAQ";
+        if (isMenuQuestion(lower)) return "MENU_RECOMMENDATION";
+        if (containsAny(lower, "bitcoin", "chung khoan", "code", "lap trinh", "chinh tri", "bong da", "thoi tiet")) return "OUT_OF_SCOPE";
         return "FAQ";
+    }
+
+    private boolean containsAny(String text, String... terms) {
+        for (String term : terms) {
+            if (text.contains(term)) return true;
+        }
+        return false;
+    }
+
+    private boolean isMenuQuestion(String lower) {
+        return containsAny(lower,
+                "mon an", "do an", "do uong", "nuoc uong", "combo", "khong cay", "it cay",
+                "an chay", "di ung", "ngan sach", "goi y", "recommend", "gia bao nhieu",
+                "ban chay", "ngon nhat", "hai san", "thit", "rau", "com", "pho", "bun", "lau",
+                "tra", "ca phe", "sinh to", "nuoc ep")
+                || lower.startsWith("mon ")
+                || lower.endsWith(" mon")
+                || lower.contains(" mon ")
+                || lower.startsWith("an ")
+                || lower.contains(" an gi")
+                || lower.contains(" nen an")
+                || lower.contains(" uong gi")
+                || lower.contains(" muon an")
+                || lower.contains(" muon uong");
+    }
+
+    private String normalizeSearchText(String value) {
+        if (value == null) return "";
+        String normalized = Normalizer.normalize(value.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replace('đ', 'd');
+        return normalized.replaceAll("[^\\p{Alnum}]+", " ").trim();
     }
 
     private List<String> detectAllergies(String lower) {

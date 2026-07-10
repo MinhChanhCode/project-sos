@@ -182,7 +182,7 @@ def detect_intent(message: str) -> str:
         return "CART_HELP"
     if any(term in lower for term in ["tới đâu", "làm xong", "món của tôi", "đơn của tôi", "trạng thái đơn", "chờ lâu", "ra chưa"]):
         return "ORDER_STATUS"
-    if any(term in lower for term in ["mở cửa", "giờ", "địa chỉ", "wifi", "xuất hóa đơn", "hủy món", "đổi món", "phí dịch vụ", "review", "đánh giá"]):
+    if any(term in lower for term in ["mở cửa", "giờ", "địa chỉ", "địa điểm", "ở đâu", "vi tri", "vị trí", "wifi", "xuất hóa đơn", "hủy món", "đổi món", "phí dịch vụ", "review", "đánh giá"]):
         return "FAQ"
     if any(term in lower for term in ["món", "ăn", "uống", "đồ uống", "nước", "bia", "combo", "cay", "chay", "dị ứng", "ngân sách", "người", "gợi ý", "recommend"]):
         if any(term in lower for term in ["giá", "bao nhiêu", "mấy tiền", "duoi", "dưới"]):
@@ -407,6 +407,27 @@ def match_faq(message: str) -> Optional[dict]:
     return best_item if best_score >= 2 else None
 
 
+def fallback_faq_reply(message: str) -> str:
+    lower = normalize(message)
+    if any(term in lower for term in ["xin chào", "hello", "hi", "chào bạn"]):
+        return "Xin chào! Mình có thể tư vấn món ăn, kiểm tra giỏ hàng, xem trạng thái món, gọi nhân viên, hỗ trợ thanh toán hoặc trả lời thông tin nhà hàng."
+    if any(term in lower for term in ["mở cửa", "giờ", "mấy giờ", "thời gian", "open", "đóng cửa"]):
+        return f"Nhà hàng mở cửa từ {RESTAURANT_PROFILE['openingHours']}."
+    if any(term in lower for term in ["địa chỉ", "địa điểm", "ở đâu", "vị trí", "vi tri", "address"]):
+        return "Nhà hàng ở 30 Trần Quang Diệu, Quy Nhơn, Bình Định."
+    if "wifi" in lower:
+        return "Bạn vui lòng nhắn nhân viên trên màn hình hoặc hỏi trực tiếp nhân viên để được cung cấp wifi của nhà hàng."
+    if any(term in lower for term in ["xuất hóa đơn", "invoice", "hóa đơn đỏ", "vat"]):
+        return "Bạn có thể yêu cầu nhân viên hỗ trợ xuất hóa đơn. Bill trên hệ thống có danh sách món, số lượng, đơn giá và tổng tiền."
+    if any(term in lower for term in ["hủy món", "đổi món", "cancel"]):
+        return "Nếu món chưa được bếp xử lý, hãy nhắn nhân viên ngay để được hỗ trợ hủy hoặc đổi món. Khi món đã chế biến, nhà hàng có thể không hỗ trợ hủy."
+    if any(term in lower for term in ["phí dịch vụ", "giảm giá", "khuyến mãi", "service fee"]):
+        return "Nếu có phí dịch vụ, giảm giá hoặc khuyến mãi, bill sẽ hiển thị rõ trước khi thanh toán. Bạn cũng có thể nhắn nhân viên để xác nhận thêm."
+    if any(term in lower for term in ["đánh giá", "review", "phản hồi", "góp ý"]):
+        return "Sau khi dùng bữa, bạn có thể gửi đánh giá trên màn hình khách hàng để nhà hàng cải thiện chất lượng phục vụ."
+    return "Mình có thể trả lời thông tin nhà hàng như giờ mở cửa, địa chỉ, wifi, hóa đơn, thanh toán, gọi nhân viên hoặc trạng thái món. Bạn muốn hỏi phần nào?"
+
+
 def extract_budget(text: str) -> Optional[int]:
     lower = normalize(text)
     for match in re.finditer(r"(\d+)\s*(k|nghìn|ngàn|000)?", lower):
@@ -570,6 +591,8 @@ def build_rag_reply(message: str) -> str:
             return "Bạn hãy bấm nút Nhắn nhân viên hoặc Gọi dịch vụ ở góc dưới màn hình. Nhân viên sẽ nhận thông báo theo bàn của bạn."
         if intent == "PAYMENT":
             return "Bạn có thể bấm Yêu cầu thanh toán để xem bill và QR thanh toán demo. Nhân viên sẽ xác nhận sau khi bạn thanh toán."
+        if intent == "FAQ":
+            return fallback_faq_reply(message)
 
     wants_combo = any(term in lower for term in ["combo", "set", "đi nhóm", "di nhom", "mấy người", "người"])
     matched = build_combo(message, MENU_ITEMS) if wants_combo else rag_search(message, MENU_ITEMS)
@@ -813,6 +836,7 @@ def build_tool_reply(req: ChatRequest, intent: str, tool_data: dict[str, Any], s
         faq = tool_data.get("search_faq") or {}
         if faq.get("answer"):
             return str(faq.get("answer"))
+        return fallback_faq_reply(req.message)
     if intent == "CALL_STAFF":
         return "Bạn có thể bấm nút Nhắn nhân viên hoặc Gọi dịch vụ trên màn hình. Mình cũng khuyên bạn nhắn nhân viên để được hỗ trợ trực tiếp tại bàn."
     if intent == "PAYMENT_HELP":
