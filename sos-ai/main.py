@@ -231,10 +231,20 @@ def detect_intent(message: str) -> str:
         return "ORDER_STATUS"
     if any(term in lower for term in ["còn không", "hết chưa", "còn món", "hết món"]):
         return "MENU_AVAILABILITY"
-    if any(term in lower for term in ["duoi", "dưới"]) or extract_budget(lower):
-        return "BUDGET_MENU"
-    if any(term in lower for term in ["giá", "bao nhiêu tiền", "mấy tiền", "bao nhiêu"]):
-        return "MENU_PRICE"
+    if any(term in lower for term in ["combo", "set", "nhóm", "gia đình"]) or extract_people(lower):
+        return "COMBO"
+    if allergy_terms(lower):
+        return "ALLERGY_SAFE"
+    if wants_kids_friendly(lower):
+        return "KIDS_FRIENDLY"
+    if wants_no_spicy(lower):
+        return "NO_SPICY"
+    if wants_low_spicy(lower):
+        return "LOW_SPICY"
+    if wants_vegetarian(lower):
+        return "VEGETARIAN"
+    if wants_drink_pairing(lower):
+        return "DRINK_PAIRING"
     if any(term in lower for term in ["mở cửa", "giờ", "địa chỉ", "địa điểm", "ở đâu", "vi tri", "vị trí", "wifi", "xuất hóa đơn", "hủy món", "đổi món", "phí dịch vụ", "review", "đánh giá"]):
         return "FAQ"
     if any(term in lower for term in [
@@ -270,6 +280,10 @@ def detect_intent(message: str) -> str:
         if query_category_kind(lower):
             return "CATEGORY_QUERY"
         return "MENU_RECOMMENDATION"
+    if any(term in lower for term in ["duoi", "dưới"]) or extract_budget(lower):
+        return "BUDGET_MENU"
+    if any(term in lower for term in ["giá", "bao nhiêu tiền", "mấy tiền", "bao nhiêu"]):
+        return "MENU_PRICE"
     if any(term in lower for term in ["bitcoin", "chứng khoán", "code", "lập trình", "chính trị", "bóng đá", "thời tiết"]):
         return "OUT_OF_SCOPE"
     return "FAQ"
