@@ -212,9 +212,9 @@ public class ChatService {
         List<MenuItem> ranked = items.stream()
                 .filter(item -> Boolean.TRUE.equals(item.getIsActive()))
                 .sorted(byRelevance)
-                .limit(40)
+                .limit(150)
                 .toList();
-        return ranked.isEmpty() ? items.stream().limit(40).toList() : ranked;
+        return ranked.isEmpty() ? items.stream().limit(150).toList() : ranked;
     }
 
     private int scoreMenuItem(MenuItem item, String query, boolean wantsDrink, boolean wantsCombo,

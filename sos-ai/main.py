@@ -184,17 +184,36 @@ def detect_intent(message: str) -> str:
         return "ORDER_STATUS"
     if any(term in lower for term in ["mở cửa", "giờ", "địa chỉ", "địa điểm", "ở đâu", "vi tri", "vị trí", "wifi", "xuất hóa đơn", "hủy món", "đổi món", "phí dịch vụ", "review", "đánh giá"]):
         return "FAQ"
-    if any(term in lower for term in ["món", "ăn", "uống", "đồ uống", "nước", "bia", "combo", "cay", "chay", "dị ứng", "ngân sách", "người", "gợi ý", "recommend"]):
+    if any(term in lower for term in [
+        "món", "ăn", "uống", "đồ uống", "nước", "bia", "combo", "set", "cay", "chay",
+        "dị ứng", "ngân sách", "người", "gợi ý", "recommend", "trẻ em", "bé",
+        "no bụng", "ăn nhẹ", "healthy", "đậm đà", "thanh nhẹ", "chua ngọt", "giòn",
+        "món chính", "khai vị", "lẩu", "nướng", "best seller", "bán chạy"
+    ]):
         if any(term in lower for term in ["giá", "bao nhiêu", "mấy tiền", "duoi", "dưới"]):
-            return "MENU_PRICE"
+            return "BUDGET_MENU"
         if any(term in lower for term in ["còn", "hết", "còn không", "hết chưa"]):
             return "MENU_AVAILABILITY"
         if any(term in lower for term in ["bán chạy", "best seller", "ngon nhất", "món ngon"]):
             return "BEST_SELLER"
         if any(term in lower for term in ["khuyến mãi", "giảm giá", "promotion"]):
             return "PROMOTION"
-        if "combo" in lower:
+        if any(term in lower for term in ["combo", "set", "nhóm", "gia đình"]) or extract_people(lower):
             return "COMBO"
+        if wants_kids_friendly(lower):
+            return "KIDS_FRIENDLY"
+        if wants_no_spicy(lower):
+            return "NO_SPICY"
+        if wants_low_spicy(lower):
+            return "LOW_SPICY"
+        if wants_vegetarian(lower):
+            return "VEGETARIAN"
+        if allergy_terms(lower):
+            return "ALLERGY_SAFE"
+        if wants_drink_pairing(lower):
+            return "DRINK_PAIRING"
+        if query_category_kind(lower):
+            return "CATEGORY_QUERY"
         return "MENU_RECOMMENDATION"
     if any(term in lower for term in ["bitcoin", "chứng khoán", "code", "lập trình", "chính trị", "bóng đá", "thời tiết"]):
         return "OUT_OF_SCOPE"
@@ -388,6 +407,33 @@ def build_menu_context(items: list[dict], limit: int = 80) -> str:
     return "\n".join(f"- {line}" for line in lines)
 
 
+def build_menu_catalog(items: list[dict], limit: int = 150) -> str:
+    grouped: dict[str, list[dict]] = {}
+    for item in active_items(items)[:limit]:
+        category = as_text(item.get("categoryName") or item.get("type") or "Khác") or "Khác"
+        grouped.setdefault(category, []).append(item)
+
+    lines = []
+    for category, category_items in grouped.items():
+        lines.append(f"[{category}]")
+        for item in category_items[:30]:
+            status = "còn" if item.get("isAvailable", True) is not False else "hết"
+            tags = []
+            if item.get("spicyLevel") is not None:
+                tags.append(f"cay {item.get('spicyLevel')}/3")
+            if item.get("isVegetarian") is True:
+                tags.append("chay")
+            if item.get("tasteTags"):
+                tags.append(as_text(item.get("tasteTags")))
+            if item.get("suitableFor"):
+                tags.append(as_text(item.get("suitableFor")))
+            tag_text = f" | {'; '.join(tags[:4])}" if tags else ""
+            lines.append(
+                f"- {item.get('name')} - {format_money(item.get('promotionalPrice') or item.get('price'))} - {status}{tag_text}"
+            )
+    return "\n".join(lines)
+
+
 def build_faq_context() -> str:
     return "\n".join(
         f"- Hỏi: {item.get('question')}\n  Đáp: {item.get('answer')}"
@@ -444,7 +490,7 @@ def extract_budget(text: str) -> Optional[int]:
 
 def extract_people(text: str) -> Optional[int]:
     lower = normalize(text)
-    match = re.search(r"(\d+)\s*(người|nguoi|khách|khach|ban)", lower)
+    match = re.search(r"(\d+)\s*(người|nguoi|khách|khach|bạn|ban)", lower)
     if match:
         return int(match.group(1))
     return None
@@ -453,6 +499,59 @@ def extract_people(text: str) -> Optional[int]:
 def wants_vegetarian(text: str) -> bool:
     lower = normalize(text)
     return any(term in lower for term in ["ăn chay", "chay", "vegetarian", "vegan"])
+
+
+def wants_no_spicy(text: str) -> bool:
+    lower = normalize(text)
+    return any(term in lower for term in ["không cay", "khong cay", "không ăn cay", "khong an cay", "not spicy"])
+
+
+def wants_low_spicy(text: str) -> bool:
+    lower = normalize(text)
+    return wants_no_spicy(lower) or any(term in lower for term in ["ít cay", "it cay", "cay nhẹ", "cay nhe"])
+
+
+def wants_kids_friendly(text: str) -> bool:
+    lower = normalize(text)
+    return any(term in lower for term in ["trẻ em", "tre em", "bé", "con nít", "em bé", "kids", "kid"])
+
+
+def wants_drink_pairing(text: str) -> bool:
+    lower = normalize(text)
+    return any(term in lower for term in ["đồ uống", "uống gì", "nước nào", "thức uống"]) and any(
+        term in lower for term in ["hợp", "kèm", "với", "ăn cùng", "pairing"]
+    )
+
+
+def query_category_kind(text: str) -> Optional[str]:
+    lower = normalize(text)
+    category_terms = [
+        ("DRINK", ["đồ uống", "nước giải khát", "bia", "cà phê", "trà", "sinh tố", "nước ép"]),
+        ("COMBO", ["combo", "set"]),
+        ("MAIN", ["món chính", "ăn chính", "cơm", "phở", "bún", "mì"]),
+        ("APPETIZER", ["khai vị", "ăn nhẹ", "món nhẹ"]),
+        ("GRILL", ["đồ nướng", "món nướng", "nướng"]),
+        ("HOTPOT", ["lẩu"]),
+    ]
+    for kind, terms in category_terms:
+        if any(term in lower for term in terms):
+            return kind
+    return None
+
+
+def wants_light_food(text: str) -> bool:
+    lower = normalize(text)
+    return any(term in lower for term in ["thanh nhẹ", "nhẹ bụng", "ăn nhẹ", "ít dầu", "ít dầu mỡ", "healthy", "không ngấy"])
+
+
+def wants_filling_food(text: str) -> bool:
+    lower = normalize(text)
+    return any(term in lower for term in ["no", "no bụng", "rất đói", "ăn no", "chắc bụng"])
+
+
+def wants_rich_flavor(text: str) -> bool:
+    lower = normalize(text)
+    return any(term in lower for term in ["đậm đà", "chua ngọt", "béo", "giòn", "nóng hổi", "trời mưa", "dễ ăn"])
 
 
 def allergy_terms(text: str) -> list[str]:
@@ -490,6 +589,26 @@ def is_main(item: dict) -> bool:
     return item.get("type") == "MAIN" or any(term in item_text(item) for term in ["món chính", "cơm", "phở", "bún", "lẩu", "mì", "bánh mì"])
 
 
+def matches_category_kind(item: dict, kind: Optional[str]) -> bool:
+    if not kind:
+        return True
+    text = item_text(item)
+    item_type = as_text(item.get("type")).upper()
+    if kind == "DRINK":
+        return is_drink(item)
+    if kind == "COMBO":
+        return is_combo(item)
+    if kind == "MAIN":
+        return is_main(item)
+    if kind == "APPETIZER":
+        return item_type in {"APPETIZER", "STARTER"} or any(term in text for term in ["khai vị", "ăn nhẹ", "salad", "gỏi", "khoai", "chả giò"])
+    if kind == "GRILL":
+        return "GRILL" in item_type or any(term in text for term in ["nướng", "đồ nướng"])
+    if kind == "HOTPOT":
+        return "HOTPOT" in item_type or "lẩu" in text
+    return True
+
+
 def available_items(items: list[dict]) -> list[dict]:
     return [
         item for item in items
@@ -504,26 +623,51 @@ def item_score(query: str, item: dict) -> int:
     for token in set(tokenize(lower)):
         if token in text:
             score += 2
-    if "combo" in lower and is_combo(item):
+    if any(term in lower for term in ["combo", "set", "nhóm", "gia đình", "nhiều người"]) and is_combo(item):
         score += 8
     if any(term in lower for term in ["nước", "uống", "giải khát"]) and is_drink(item):
         score += 6
     if any(term in lower for term in ["no", "món chính", "ăn chính"]) and is_main(item):
         score += 6
-    if "không cay" in lower and int(item.get("spicyLevel") or 0) == 0:
+    if any(term in lower for term in ["không cay", "ít cay", "cay nhẹ"]) and int(item.get("spicyLevel") or 0) <= 1:
         score += 5
     if "cay" in lower and "không cay" not in lower and int(item.get("spicyLevel") or 0) >= 2:
         score += 4
     if wants_vegetarian(lower) and item.get("isVegetarian") is True:
         score += 8
+    if wants_kids_friendly(lower):
+        spicy_level = int(item.get("spicyLevel") or 0)
+        if spicy_level == 0:
+            score += 8
+        if any(term in text for term in ["trẻ em", "bé", "không cay", "thanh nhẹ", "dễ ăn", "sữa", "nước ép", "sinh tố", "cơm", "gà"]):
+            score += 6
+    category = query_category_kind(lower)
+    if category and matches_category_kind(item, category):
+        score += 9
+    if wants_drink_pairing(lower) and is_drink(item):
+        score += 12
+        pairing = as_text(item.get("pairing")).lower()
+        if any(term in lower for term in tokenize(pairing)):
+            score += 4
+    if wants_light_food(lower) and any(term in text for term in ["thanh nhẹ", "nhẹ", "healthy", "rau", "salad", "gỏi", "nước ép", "trà", "không ngấy", "ít dầu"]):
+        score += 7
+    if wants_filling_food(lower) and (is_main(item) or is_combo(item) or any(term in text for term in ["no", "cơm", "phở", "bún", "mì", "lẩu", "combo"])):
+        score += 8
+    if wants_rich_flavor(lower):
+        for term in ["đậm đà", "chua ngọt", "béo", "giòn", "nóng", "dễ ăn"]:
+            if term in lower and term in text:
+                score += 6
     return score
 
 
 def rag_search(query: str, items: list[dict], include_unavailable: bool = False) -> list[dict]:
     lower = normalize(query)
     budget = extract_budget(lower)
-    no_spicy = "không cay" in lower or "khong cay" in lower or "not spicy" in lower
+    no_spicy = wants_no_spicy(lower)
+    low_spicy = wants_low_spicy(lower) or wants_kids_friendly(lower)
     allergies = allergy_terms(lower)
+    category = query_category_kind(lower)
+    drink_pairing = wants_drink_pairing(lower)
     results: list[tuple[int, dict]] = []
     candidates = active_items(items) if include_unavailable else available_items(items)
     for item in candidates:
@@ -531,7 +675,13 @@ def rag_search(query: str, items: list[dict], include_unavailable: bool = False)
         text = item_text(item)
         if budget and price > budget:
             continue
+        if category and not matches_category_kind(item, category):
+            continue
+        if drink_pairing and not is_drink(item):
+            continue
         if no_spicy and int(item.get("spicyLevel") or 0) > 0:
+            continue
+        if low_spicy and int(item.get("spicyLevel") or 0) > 1:
             continue
         if wants_vegetarian(lower) and item.get("isVegetarian") is not True:
             continue
@@ -541,8 +691,13 @@ def rag_search(query: str, items: list[dict], include_unavailable: bool = False)
         if score > 0:
             results.append((score, item))
     if not results:
-        results = [(item_score(lower, item), item) for item in candidates]
-    return [item for _, item in sorted(results, key=lambda row: (-row[0], item_price(row[1])))[:5]]
+        fallback_candidates = [
+            item for item in candidates
+            if (not category or matches_category_kind(item, category))
+            and (not drink_pairing or is_drink(item))
+        ] or candidates
+        results = [(item_score(lower, item), item) for item in fallback_candidates]
+    return [item for _, item in sorted(results, key=lambda row: (-row[0], item_price(row[1])))[:8]]
 
 
 def build_combo(message: str, items: list[dict]) -> list[dict]:
@@ -559,21 +714,39 @@ def build_combo(message: str, items: list[dict]) -> list[dict]:
     picked: list[dict] = []
     remaining = budget or 9999999
 
-    for main in sorted(mains, key=item_price):
+    target_mains = max(1, people)
+    target_drinks = max(1, people)
+
+    for main in sorted(mains, key=lambda item: (-item_score(lower, item), item_price(item))):
         if len([x for x in picked if is_main(x)]) >= people:
             break
         if item_score(lower, main) >= 0 and item_price(main) <= remaining:
             picked.append(main)
             remaining -= item_price(main)
 
-    for drink in sorted(drinks, key=item_price):
+    for drink in sorted(drinks, key=lambda item: (-item_score(lower, item), item_price(item))):
         if len([x for x in picked if is_drink(x)]) >= people:
             break
         if item_price(drink) <= remaining:
             picked.append(drink)
             remaining -= item_price(drink)
 
-    return picked[: max(3, people * 2)]
+    if len([x for x in picked if is_main(x)]) < target_mains:
+        for main in sorted(mains, key=item_price):
+            if main not in picked and item_price(main) <= remaining:
+                picked.append(main)
+                remaining -= item_price(main)
+            if len([x for x in picked if is_main(x)]) >= target_mains:
+                break
+    if len([x for x in picked if is_drink(x)]) < target_drinks:
+        for drink in sorted(drinks, key=item_price):
+            if drink not in picked and item_price(drink) <= remaining:
+                picked.append(drink)
+                remaining -= item_price(drink)
+            if len([x for x in picked if is_drink(x)]) >= target_drinks:
+                break
+
+    return picked[: max(4, people * 2)]
 
 
 def build_rag_reply(message: str) -> str:
@@ -637,7 +810,7 @@ def has_llm_config() -> bool:
     return bool(os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY"))
 
 
-def build_llm_prompt(message: str, context: str, intent: str, tool_data: dict[str, Any], session_id: str) -> str:
+def build_llm_prompt(message: str, context: str, catalog: str, intent: str, tool_data: dict[str, Any], session_id: str) -> str:
     restaurant = json.dumps(RESTAURANT_PROFILE, ensure_ascii=False)
     return f"""
 Bạn là nhân viên tư vấn AI của nhà hàng Bếp Mẹ Hương trong hệ thống ProjectSOS/Gọi Món.
@@ -651,6 +824,9 @@ NGUYÊN TẮC BẮT BUỘC:
 - Nếu thiếu thông tin quan trọng như số người, ngân sách, mức cay hoặc món cần tránh, hãy hỏi lại đúng 1 câu ngắn.
 - Nếu câu hỏi ngoài phạm vi nhà hàng/menu/order/cart/thanh toán/dịch vụ, hãy lịch sự giới hạn phạm vi và gợi ý hỏi về món hoặc gọi nhân viên.
 - Nếu TOOL DATA có draftReply, hãy viết lại tự nhiên hơn nhưng phải giữ nguyên dữ liệu thật: tên món, giá, số lượng, trạng thái.
+- Chủ động hiểu các kiểu hỏi: món không cay, ít cay, trẻ em, gia đình, combo 2/3/4 người, nhóm bạn, dưới ngân sách, món no bụng, món ăn nhẹ, món healthy, món đậm đà, món theo danh mục, đồ uống kèm, món khuyến mãi, món hết/còn, dị ứng/kiêng món.
+- Khi tư vấn đồ uống kèm, ưu tiên đồ uống còn món và giải thích hợp với món chính/lẩu/nướng/cơm ở điểm nào.
+- Khi tư vấn ngân sách hoặc combo, nêu tổng tiền dự kiến nếu gợi ý nhiều món.
 
 Intent hiện tại: {intent}
 
@@ -659,6 +835,9 @@ THÔNG TIN NHÀ HÀNG:
 
 CONTEXT RAG / MENU LIÊN QUAN:
 {context}
+
+CATALOG MENU ĐẦY ĐỦ HƠN THEO DANH MỤC:
+{catalog}
 
 TOOL DATA THẬT:
 {json.dumps(tool_data, ensure_ascii=False, default=str)[:12000]}
@@ -748,8 +927,8 @@ def call_gemini(message: str, system_prompt: str) -> tuple[Optional[str], Option
         return None, f"gemini_error:{type(exc).__name__}"
 
 
-def call_llm(message: str, context: str, intent: str, tool_data: dict[str, Any], session_id: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    system_prompt = build_llm_prompt(message, context, intent, tool_data, session_id)
+def call_llm(message: str, context: str, catalog: str, intent: str, tool_data: dict[str, Any], session_id: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    system_prompt = build_llm_prompt(message, context, catalog, intent, tool_data, session_id)
     errors: list[str] = []
     if os.getenv("OPENAI_API_KEY"):
         text, error = call_openai(message, system_prompt)
@@ -841,11 +1020,55 @@ def build_tool_reply(req: ChatRequest, intent: str, tool_data: dict[str, Any], s
         return "Bạn có thể bấm nút Nhắn nhân viên hoặc Gọi dịch vụ trên màn hình. Mình cũng khuyên bạn nhắn nhân viên để được hỗ trợ trực tiếp tại bàn."
     if intent == "PAYMENT_HELP":
         return "Bạn hãy bấm Yêu cầu thanh toán để xem bill và QR thanh toán. Nhân viên sẽ xác nhận sau khi bạn thanh toán."
-    if intent in {"MENU_AVAILABILITY", "MENU_PRICE"} and suggested_items:
+    if intent in {"MENU_AVAILABILITY", "MENU_PRICE", "BUDGET_MENU", "CATEGORY_QUERY"} and suggested_items:
         lines = ["Mình tìm thấy các món phù hợp trong menu:"]
         for item in suggested_items[:5]:
             status = "còn món" if item.get("isAvailable", True) is not False else "hết món"
             lines.append(f"- {item.get('name')} - {format_money(item.get('promotionalPrice') or item.get('price'))} ({status})")
+        return "\n".join(lines)
+    if intent in {
+        "MENU_RECOMMENDATION", "COMBO", "BEST_SELLER", "PROMOTION", "KIDS_FRIENDLY",
+        "NO_SPICY", "LOW_SPICY", "VEGETARIAN", "ALLERGY_SAFE", "DRINK_PAIRING"
+    } and suggested_items:
+        lower = normalize(req.message)
+        intro = "Mình gợi ý các món phù hợp từ menu hiện tại:"
+        if intent == "COMBO" or extract_people(lower):
+            people = extract_people(lower)
+            intro = f"Mình gợi ý combo cho {people} người:" if people else "Mình gợi ý combo/nhóm món phù hợp:"
+        elif wants_kids_friendly(lower):
+            intro = "Mình gợi ý các món dễ ăn, ít/không cay cho trẻ em:"
+        elif intent in {"NO_SPICY", "LOW_SPICY"} or "không cay" in lower or "ít cay" in lower:
+            intro = "Mình gợi ý các món ít cay hoặc không cay:"
+        elif intent == "VEGETARIAN":
+            intro = "Mình gợi ý các món chay/phù hợp ăn chay đang có:"
+        elif intent == "ALLERGY_SAFE":
+            intro = "Mình lọc các món phù hợp hơn với thông tin dị ứng/kiêng món của bạn:"
+        elif intent == "DRINK_PAIRING":
+            intro = "Mình gợi ý đồ uống hợp để dùng kèm:"
+        elif intent == "BEST_SELLER":
+            intro = "Mình gợi ý các món nổi bật/bán chạy trong menu:"
+        elif intent == "PROMOTION":
+            intro = "Mình gợi ý các món đang có giá ưu đãi:"
+        lines = [intro]
+        total = 0
+        for item in suggested_items[:6]:
+            price = item_price(item)
+            total += price
+            reason_parts = []
+            if item.get("spicyLevel") is not None:
+                reason_parts.append(f"độ cay {item.get('spicyLevel')}/3")
+            if item.get("tasteTags"):
+                reason_parts.append(as_text(item.get("tasteTags")))
+            if item.get("suitableFor"):
+                reason_parts.append(as_text(item.get("suitableFor")))
+            reason = f" - {'; '.join(reason_parts[:3])}" if reason_parts else ""
+            lines.append(f"- {item.get('name')} - {format_money(price)}{reason}")
+        if intent == "COMBO" or extract_people(lower):
+            lines.append(f"Tổng gợi ý khoảng {format_money(total)}. Bạn có thể bấm thêm từng món vào giỏ.")
+        else:
+            lines.append("Bạn có thể nói thêm ngân sách, số người hoặc món cần tránh để mình lọc kỹ hơn.")
+        if allergy_terms(lower):
+            lines.append("Lưu ý: với dị ứng, bạn nên xác nhận lại với nhân viên trước khi dùng món.")
         return "\n".join(lines)
     return None
 
@@ -874,17 +1097,23 @@ def chat(req: ChatRequest):
             suggested_items = [item for item in value if isinstance(item, dict)]
             break
 
-    menu_context = build_menu_context(suggested_items or get_context_menu(req.context), limit=12)
+    all_menu_items = get_context_menu(req.context)
+    menu_context = build_menu_context(suggested_items or all_menu_items, limit=24)
+    menu_catalog = build_menu_catalog(all_menu_items, limit=150)
     deterministic_reply = build_tool_reply(req, intent, tool_data, suggested_items)
     if deterministic_reply:
         tool_data["draftReply"] = deterministic_reply
+    tool_data["menuSummary"] = req.context.get("menuSummary") or {
+        "totalItems": len(active_items(all_menu_items)),
+        "availableItems": len(available_items(all_menu_items)),
+    }
     needs_llm = has_llm_config() and intent != "OUT_OF_SCOPE"
     reply = deterministic_reply
     llm_used = False
     llm_provider = None
     fallback_reason = None
     if needs_llm:
-        llm_reply, llm_provider, fallback_reason = call_llm(req.message, menu_context, intent, tool_data, session_id)
+        llm_reply, llm_provider, fallback_reason = call_llm(req.message, menu_context, menu_catalog, intent, tool_data, session_id)
         if llm_reply:
             reply = llm_reply
             llm_used = True

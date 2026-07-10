@@ -100,14 +100,18 @@ const chatSessionId = ref(props.sessionId || "");
 const lastSuggestedItems = ref<any[]>([]);
 const aiStatus = ref("");
 const quickQuestions = [
-  "Gợi ý combo cho 2 người dưới 200k",
-  "Món chính không cay cho trẻ em",
+  "Món không cay",
+  "Món cho trẻ em",
+  "Combo 3 người dưới 300k",
+  "Món dưới 50k",
   "Tôi dị ứng hải sản, nên ăn gì?",
+  "Đồ uống hợp với món chính",
+  "Món no bụng",
+  "Món ăn nhẹ",
+  "Món đang khuyến mãi",
   "Giỏ hàng của tôi có gì?",
   "Món của tôi tới đâu rồi?",
-  "Gọi nhân viên",
   "Tôi muốn thanh toán",
-  "Nhà hàng mở cửa lúc mấy giờ?",
 ];
 
 onMounted(() => {
