@@ -30,28 +30,28 @@ app.add_middleware(
 
 # In-memory menu store (synced via /menu/sync from Spring Boot or manual)
 MENU_ITEMS: list[dict] = [
-    {"id": 1, "name": "Trà sữa trân châu", "price": 35000, "description": "Đồ uống ngọt béo, có trân châu dai"},
-    {"id": 2, "name": "Cà phê sữa đá", "price": 25000, "description": "Cà phê Việt Nam pha sữa đặc, uống lạnh"},
-    {"id": 3, "name": "Sinh tố xoài", "price": 40000, "description": "Sinh tố trái cây mát, vị ngọt tự nhiên"},
-    {"id": 4, "name": "Gỏi cuốn tôm thịt", "price": 42000, "description": "Khai vị nhẹ, nhiều rau, không cay"},
-    {"id": 5, "name": "Chả giò hải sản", "price": 48000, "description": "Khai vị chiên giòn nhân tôm mực"},
-    {"id": 6, "name": "Salad bò lúc lắc", "price": 59000, "description": "Khai vị rau xanh cùng bò mềm"},
-    {"id": 7, "name": "Khoai tây chiên phô mai", "price": 35000, "description": "Món ăn nhẹ giòn, hợp đi nhóm"},
-    {"id": 8, "name": "Phở bò tái", "price": 50000, "description": "Món chính truyền thống, nước dùng thanh, không cay"},
-    {"id": 9, "name": "Bún bò Huế", "price": 60000, "description": "Món chính vị đậm, hơi cay"},
-    {"id": 10, "name": "Cơm gà xối mỡ", "price": 55000, "description": "Món chính no bụng, gà giòn"},
-    {"id": 11, "name": "Cơm tấm sườn bì chả", "price": 68000, "description": "Món chính kiểu Sài Gòn, sườn nướng thơm"},
-    {"id": 12, "name": "Mì xào bò", "price": 62000, "description": "Món chính dễ ăn, bò mềm và rau cải"},
-    {"id": 13, "name": "Lẩu Thái hải sản", "price": 189000, "description": "Món chính cho nhóm, vị chua cay"},
-    {"id": 14, "name": "Bánh mì chảo", "price": 58000, "description": "Món chính nóng, có bò, trứng, pate"},
-    {"id": 15, "name": "Trà tắc xí muội", "price": 28000, "description": "Đồ uống chua ngọt, giải khát"},
-    {"id": 16, "name": "Nước ép cam", "price": 35000, "description": "Đồ uống trái cây tươi, giàu vitamin C"},
-    {"id": 17, "name": "Matcha latte", "price": 42000, "description": "Đồ uống trà xanh pha sữa béo nhẹ"},
-    {"id": 18, "name": "Sinh tố bơ", "price": 45000, "description": "Đồ uống béo mịn từ bơ sáp"},
-    {"id": 19, "name": "Combo cơm gà và trà tắc", "price": 78000, "description": "Combo một người, gồm món chính và đồ uống"},
-    {"id": 20, "name": "Combo phở bò và nước cam", "price": 82000, "description": "Combo một người, nhẹ bụng và không cay"},
-    {"id": 21, "name": "Combo khai vị 3 món", "price": 119000, "description": "Combo nhóm nhỏ gồm gỏi cuốn, chả giò và khoai tây"},
-    {"id": 22, "name": "Combo gia đình 4 người", "price": 329000, "description": "Combo nhóm có lẩu, món chính, khai vị và đồ uống"},
+    {"id": 1, "name": "Trà sữa trân châu", "price": 35000, "description": "Đồ uống ngọt béo, có trân châu dai", "type": "DRINK", "spicyLevel": 0, "allergens": "sữa", "suitableFor": "trẻ em, ăn nhẹ", "pairing": "món cay, món chiên", "isAvailable": True, "isActive": True},
+    {"id": 2, "name": "Cà phê sữa đá", "price": 25000, "description": "Cà phê Việt Nam pha sữa đặc, uống lạnh", "type": "DRINK", "spicyLevel": 0, "allergens": "sữa", "suitableFor": "người lớn", "pairing": "bánh mì chảo", "isAvailable": True, "isActive": True},
+    {"id": 3, "name": "Sinh tố xoài", "price": 40000, "description": "Sinh tố trái cây mát, vị ngọt tự nhiên", "type": "DRINK", "spicyLevel": 0, "allergens": "", "suitableFor": "trẻ em, giải khát", "pairing": "món chính không cay", "isAvailable": True, "isActive": True},
+    {"id": 4, "name": "Gỏi cuốn tôm thịt", "price": 42000, "description": "Khai vị nhẹ, nhiều rau, không cay", "type": "APPETIZER", "spicyLevel": 0, "allergens": "tôm, hải sản", "suitableFor": "ăn nhẹ, không cay", "pairing": "trà tắc", "isAvailable": True, "isActive": True},
+    {"id": 5, "name": "Chả giò hải sản", "price": 48000, "description": "Khai vị chiên giòn nhân tôm mực", "type": "APPETIZER", "spicyLevel": 0, "allergens": "hải sản, tôm, mực", "suitableFor": "ăn nhẹ, đi nhóm", "pairing": "trà tắc", "isAvailable": True, "isActive": True},
+    {"id": 6, "name": "Salad bò lúc lắc", "price": 59000, "description": "Khai vị rau xanh cùng bò mềm", "type": "APPETIZER", "spicyLevel": 0, "allergens": "bò", "suitableFor": "ăn nhẹ, nhiều rau", "pairing": "nước ép cam", "isAvailable": True, "isActive": True},
+    {"id": 7, "name": "Khoai tây chiên phô mai", "price": 35000, "description": "Món ăn nhẹ giòn, hợp đi nhóm", "type": "APPETIZER", "spicyLevel": 0, "allergens": "sữa", "suitableFor": "trẻ em, ăn nhẹ, đi nhóm", "pairing": "trà tắc, nước ép cam", "isAvailable": True, "isActive": True},
+    {"id": 8, "name": "Phở bò tái", "price": 50000, "description": "Món chính truyền thống, nước dùng thanh, không cay", "type": "MAIN", "spicyLevel": 0, "allergens": "bò", "suitableFor": "món no bụng, không cay", "pairing": "nước ép cam", "isAvailable": True, "isActive": True},
+    {"id": 9, "name": "Bún bò Huế", "price": 60000, "description": "Món chính vị đậm, hơi cay", "type": "MAIN", "spicyLevel": 2, "allergens": "bò", "suitableFor": "người thích cay", "pairing": "trà tắc", "isAvailable": True, "isActive": True},
+    {"id": 10, "name": "Cơm gà xối mỡ", "price": 55000, "description": "Món chính no bụng, gà giòn", "type": "MAIN", "spicyLevel": 0, "allergens": "gà", "suitableFor": "món no bụng, dễ ăn", "pairing": "trà tắc", "isAvailable": True, "isActive": True},
+    {"id": 11, "name": "Cơm tấm sườn bì chả", "price": 68000, "description": "Món chính kiểu Sài Gòn, sườn nướng thơm", "type": "MAIN", "spicyLevel": 0, "allergens": "trứng", "suitableFor": "món no bụng", "pairing": "trà tắc", "isAvailable": True, "isActive": True},
+    {"id": 12, "name": "Mì xào bò", "price": 62000, "description": "Món chính dễ ăn, bò mềm và rau cải", "type": "MAIN", "spicyLevel": 0, "allergens": "bò", "suitableFor": "món no bụng, dễ ăn", "pairing": "nước ép cam", "isAvailable": True, "isActive": True},
+    {"id": 13, "name": "Lẩu Thái hải sản", "price": 189000, "description": "Món chính cho nhóm, vị chua cay", "type": "MAIN", "spicyLevel": 3, "allergens": "hải sản, tôm, mực, cá", "suitableFor": "nhóm bạn, người thích cay", "pairing": "trà tắc", "isAvailable": True, "isActive": True},
+    {"id": 14, "name": "Bánh mì chảo", "price": 58000, "description": "Món chính nóng, có bò, trứng, pate", "type": "MAIN", "spicyLevel": 0, "allergens": "bò, trứng", "suitableFor": "món no bụng", "pairing": "cà phê sữa đá", "isAvailable": True, "isActive": True},
+    {"id": 15, "name": "Trà tắc xí muội", "price": 28000, "description": "Đồ uống chua ngọt, giải khát", "type": "DRINK", "spicyLevel": 0, "allergens": "", "suitableFor": "giải khát, đi nhóm", "pairing": "món chính, món chiên, món cay", "promotionalPrice": 24000, "isAvailable": True, "isActive": True},
+    {"id": 16, "name": "Nước ép cam", "price": 35000, "description": "Đồ uống trái cây tươi, giàu vitamin C", "type": "DRINK", "spicyLevel": 0, "allergens": "", "suitableFor": "trẻ em, giải khát", "pairing": "phở bò, cơm gà, mì xào", "isAvailable": True, "isActive": True},
+    {"id": 17, "name": "Matcha latte", "price": 42000, "description": "Đồ uống trà xanh pha sữa béo nhẹ", "type": "DRINK", "spicyLevel": 0, "allergens": "sữa", "suitableFor": "ăn nhẹ, tráng miệng", "pairing": "khoai tây chiên phô mai", "isAvailable": True, "isActive": True},
+    {"id": 18, "name": "Sinh tố bơ", "price": 45000, "description": "Đồ uống béo mịn từ bơ sáp", "type": "DRINK", "spicyLevel": 0, "allergens": "sữa", "suitableFor": "trẻ em, tráng miệng", "pairing": "món chính không cay", "isAvailable": True, "isActive": True},
+    {"id": 19, "name": "Combo cơm gà và trà tắc", "price": 78000, "description": "Combo một người, gồm món chính và đồ uống", "type": "COMBO", "spicyLevel": 0, "allergens": "gà", "suitableFor": "một người, no bụng", "pairing": "đã gồm đồ uống", "promotionalPrice": 69000, "isAvailable": True, "isActive": True},
+    {"id": 20, "name": "Combo phở bò và nước cam", "price": 82000, "description": "Combo một người, nhẹ bụng và không cay", "type": "COMBO", "spicyLevel": 0, "allergens": "bò", "suitableFor": "một người, không cay", "pairing": "đã gồm đồ uống", "promotionalPrice": 76000, "isAvailable": True, "isActive": True},
+    {"id": 21, "name": "Combo khai vị 3 món", "price": 119000, "description": "Combo nhóm nhỏ gồm gỏi cuốn, chả giò và khoai tây", "type": "COMBO", "spicyLevel": 0, "allergens": "hải sản, tôm, mực, sữa", "suitableFor": "nhóm nhỏ, ăn nhẹ", "pairing": "trà tắc", "isAvailable": True, "isActive": True},
+    {"id": 22, "name": "Combo gia đình 4 người", "price": 329000, "description": "Combo nhóm có lẩu, món chính, khai vị và đồ uống", "type": "COMBO", "spicyLevel": 3, "allergens": "hải sản, tôm, mực", "suitableFor": "gia đình 4 người", "pairing": "đã gồm đồ uống", "isAvailable": True, "isActive": True},
 ]
 MENU_SYNCED = False
 
@@ -152,6 +152,47 @@ def item_text(item: dict) -> str:
     return normalize(" ".join(as_text(item.get(field)) for field in fields))
 
 
+def effective_spicy_level(item: dict) -> int:
+    value = item.get("spicyLevel")
+    if value not in (None, ""):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            pass
+    text = item_text(item)
+    if "không cay" in text or "khong cay" in text:
+        return 0
+    if any(term in text for term in ["cay nhẹ", "cay nhe", "hơi cay", "hoi cay", "sa tế", "sa te"]):
+        return 2
+    if any(term in text for term in ["cay", "ớt", "ot", "lẩu thái", "lau thai", "bún bò huế", "bun bo hue"]):
+        return 3
+    return 0
+
+
+def effective_allergen_text(item: dict) -> str:
+    text = item_text(item)
+    detected = []
+    for term in ["hải sản", "tôm", "mực", "cua", "cá", "ốc", "nghêu", "sò", "sữa", "đậu phộng", "trứng", "bò", "gà"]:
+        if term in text:
+            detected.append(term)
+    return " ".join(detected)
+
+
+def effective_type(item: dict) -> str:
+    item_type = as_text(item.get("type")).upper()
+    if item_type:
+        return item_type
+    text = item_text(item)
+    name = normalize(item.get("name"))
+    if "combo" in name or "combo" in text or "set" in text:
+        return "COMBO"
+    if any(term in text for term in ["đồ uống", "nước", "trà", "cà phê", "sinh tố", "latte", "giải khát"]):
+        return "DRINK"
+    if any(term in text for term in ["khai vị", "ăn nhẹ", "salad", "gỏi", "khoai", "chả giò"]):
+        return "APPETIZER"
+    return "MAIN"
+
+
 def faq_text(item: dict) -> str:
     return normalize(" ".join(as_text(item.get(field)) for field in ["question", "answer", "tags"]))
 
@@ -196,8 +237,6 @@ def detect_intent(message: str) -> str:
         "no bụng", "ăn nhẹ", "healthy", "đậm đà", "thanh nhẹ", "chua ngọt", "giòn",
         "món chính", "khai vị", "lẩu", "nướng", "best seller", "bán chạy"
     ]):
-        if any(term in lower for term in ["giá", "bao nhiêu", "mấy tiền", "duoi", "dưới"]):
-            return "BUDGET_MENU"
         if any(term in lower for term in ["còn", "hết", "còn không", "hết chưa"]):
             return "MENU_AVAILABILITY"
         if any(term in lower for term in ["bán chạy", "best seller", "ngon nhất", "món ngon"]):
@@ -206,6 +245,8 @@ def detect_intent(message: str) -> str:
             return "PROMOTION"
         if any(term in lower for term in ["combo", "set", "nhóm", "gia đình"]) or extract_people(lower):
             return "COMBO"
+        if any(term in lower for term in ["giá", "bao nhiêu", "mấy tiền", "duoi", "dưới"]):
+            return "BUDGET_MENU"
         if wants_kids_friendly(lower):
             return "KIDS_FRIENDLY"
         if wants_no_spicy(lower):
@@ -419,7 +460,7 @@ def build_menu_context(items: list[dict], limit: int = 80) -> str:
         optional_fields = [
             ("Mô tả", item.get("description")),
             ("Khẩu vị", item.get("tasteTags")),
-            ("Độ cay", item.get("spicyLevel")),
+            ("Độ cay", effective_spicy_level(item)),
             ("Nguyên liệu", item.get("ingredients")),
             ("Dị ứng", item.get("allergens")),
             ("Phù hợp", item.get("suitableFor")),
@@ -443,8 +484,7 @@ def build_menu_catalog(items: list[dict], limit: int = 150) -> str:
         for item in category_items[:30]:
             status = "còn" if item.get("isAvailable", True) is not False else "hết"
             tags = []
-            if item.get("spicyLevel") is not None:
-                tags.append(f"cay {item.get('spicyLevel')}/3")
+            tags.append(f"cay {effective_spicy_level(item)}/3")
             if item.get("isVegetarian") is True:
                 tags.append("chay")
             if item.get("tasteTags"):
@@ -524,17 +564,14 @@ def should_keep_deterministic_reply(intent: str, deterministic_reply: Optional[s
         return False
     strict_menu_intents = {
         "BUDGET_MENU", "ALLERGY_SAFE", "NO_SPICY", "LOW_SPICY", "KIDS_FRIENDLY",
-        "VEGETARIAN", "MENU_AVAILABILITY", "CATEGORY_QUERY", "DRINK_PAIRING"
+        "VEGETARIAN", "MENU_AVAILABILITY", "CATEGORY_QUERY", "DRINK_PAIRING",
+        "COMBO", "PROMOTION", "BEST_SELLER", "MENU_RECOMMENDATION"
     }
-    if intent in strict_menu_intents and (
-        "mình chưa thấy" in normalize(deterministic_reply)
-        or "không thấy thành phần cần tránh" in normalize(deterministic_reply)
-        or "dưới" in normalize(deterministic_reply)
-        or "dị ứng" in normalize(deterministic_reply)
-    ):
+    if intent in strict_menu_intents:
         return True
-    if intent not in {"FAQ", "PAYMENT_HELP", "CALL_STAFF", "CART_HELP", "ORDER_STATUS", "OUT_OF_SCOPE"}:
-        return is_generic_menu_reply(llm_reply)
+    protected_intents = {"FAQ", "PAYMENT_HELP", "CALL_STAFF", "CART_HELP", "ORDER_STATUS", "OUT_OF_SCOPE"}
+    if intent in protected_intents:
+        return True
     return is_generic_menu_reply(llm_reply)
 
 
@@ -587,6 +624,13 @@ def wants_drink_pairing(text: str) -> bool:
     )
 
 
+def wants_food_only(text: str) -> bool:
+    lower = normalize(text)
+    has_food_word = any(term in lower for term in ["món", "ăn gì", "ăn nhẹ", "no bụng", "món chính", "khai vị"])
+    has_drink_word = any(term in lower for term in ["đồ uống", "nước", "uống", "trà", "cà phê", "sinh tố", "latte"])
+    return has_food_word and not has_drink_word
+
+
 def query_category_kind(text: str) -> Optional[str]:
     lower = normalize(text)
     category_terms = [
@@ -633,7 +677,7 @@ def allergy_terms(text: str) -> list[str]:
 
 
 def contains_restricted_term(item: dict, terms: list[str]) -> bool:
-    text = item_text(item)
+    text = item_text(item) + " " + effective_allergen_text(item)
     if "hải sản" in terms and any(term in text for term in ["hải sản", "tôm", "mực", "cua", "cá", "ốc", "nghêu", "sò"]):
         return True
     return any(term in text for term in terms)
@@ -648,12 +692,12 @@ def item_reason_from_description(item: dict, query: str, intent: str) -> str:
     allergies = allergy_terms(lower)
     if budget and price <= budget:
         reasons.append(f"dưới {format_money(budget)}")
-    if wants_no_spicy(lower) and int(item.get("spicyLevel") or 0) == 0:
+    if wants_no_spicy(lower) and effective_spicy_level(item) == 0:
         reasons.append("mô tả/độ cay phù hợp không cay")
-    elif wants_low_spicy(lower) and int(item.get("spicyLevel") or 0) <= 1:
+    elif wants_low_spicy(lower) and effective_spicy_level(item) <= 1:
         reasons.append("ít cay")
     if wants_kids_friendly(lower):
-        if int(item.get("spicyLevel") or 0) == 0:
+        if effective_spicy_level(item) == 0:
             reasons.append("không cay, hợp trẻ em hơn")
         if any(term in text for term in ["dễ ăn", "thanh nhẹ", "trái cây", "sữa", "nước ép", "sinh tố"]):
             reasons.append("mô tả dễ ăn/thanh nhẹ")
@@ -688,22 +732,25 @@ def active_items(items: list[dict]) -> list[dict]:
 
 def is_drink(item: dict) -> bool:
     text = item_text(item)
-    return item.get("type") == "DRINK" or any(term in text for term in ["đồ uống", "trà", "cà phê", "sinh tố", "nước ép", "latte"])
+    item_type = effective_type(item)
+    if item_type == "COMBO":
+        return False
+    return item_type == "DRINK" or any(term in text for term in ["đồ uống", "trà", "cà phê", "sinh tố", "nước ép", "latte"])
 
 
 def is_combo(item: dict) -> bool:
-    return item.get("type") == "COMBO" or "combo" in normalize(item.get("name"))
+    return effective_type(item) == "COMBO" or "combo" in normalize(item.get("name"))
 
 
 def is_main(item: dict) -> bool:
-    return item.get("type") == "MAIN" or any(term in item_text(item) for term in ["món chính", "cơm", "phở", "bún", "lẩu", "mì", "bánh mì"])
+    return effective_type(item) == "MAIN" or any(term in item_text(item) for term in ["món chính", "cơm", "phở", "bún", "lẩu", "mì", "bánh mì"])
 
 
 def matches_category_kind(item: dict, kind: Optional[str]) -> bool:
     if not kind:
         return True
     text = item_text(item)
-    item_type = as_text(item.get("type")).upper()
+    item_type = effective_type(item)
     if kind == "DRINK":
         return is_drink(item)
     if kind == "COMBO":
@@ -711,7 +758,7 @@ def matches_category_kind(item: dict, kind: Optional[str]) -> bool:
     if kind == "MAIN":
         return is_main(item)
     if kind == "APPETIZER":
-        return item_type in {"APPETIZER", "STARTER"} or any(term in text for term in ["khai vị", "ăn nhẹ", "salad", "gỏi", "khoai", "chả giò"])
+        return not is_drink(item) and (item_type in {"APPETIZER", "STARTER"} or any(term in text for term in ["khai vị", "ăn nhẹ", "salad", "gỏi", "khoai", "chả giò"]))
     if kind == "GRILL":
         return "GRILL" in item_type or any(term in text for term in ["nướng", "đồ nướng"])
     if kind == "HOTPOT":
@@ -739,14 +786,14 @@ def item_score(query: str, item: dict) -> int:
         score += 6
     if any(term in lower for term in ["no", "món chính", "ăn chính"]) and is_main(item):
         score += 6
-    if any(term in lower for term in ["không cay", "ít cay", "cay nhẹ"]) and int(item.get("spicyLevel") or 0) <= 1:
+    if any(term in lower for term in ["không cay", "ít cay", "cay nhẹ"]) and effective_spicy_level(item) <= 1:
         score += 5
-    if "cay" in lower and "không cay" not in lower and int(item.get("spicyLevel") or 0) >= 2:
+    if "cay" in lower and "không cay" not in lower and effective_spicy_level(item) >= 2:
         score += 4
     if wants_vegetarian(lower) and item.get("isVegetarian") is True:
         score += 8
     if wants_kids_friendly(lower):
-        spicy_level = int(item.get("spicyLevel") or 0)
+        spicy_level = effective_spicy_level(item)
         if spicy_level == 0:
             score += 8
         if any(term in text for term in ["trẻ em", "bé", "không cay", "thanh nhẹ", "dễ ăn", "sữa", "nước ép", "sinh tố", "cơm", "gà"]):
@@ -778,6 +825,7 @@ def rag_search(query: str, items: list[dict], include_unavailable: bool = False)
     allergies = allergy_terms(lower)
     category = query_category_kind(lower)
     drink_pairing = wants_drink_pairing(lower)
+    food_only = wants_food_only(lower) and not drink_pairing
     results: list[tuple[int, dict]] = []
     candidates = active_items(items) if include_unavailable else available_items(items)
     for item in candidates:
@@ -787,11 +835,13 @@ def rag_search(query: str, items: list[dict], include_unavailable: bool = False)
             continue
         if category and not matches_category_kind(item, category):
             continue
+        if food_only and is_drink(item):
+            continue
         if drink_pairing and not is_drink(item):
             continue
-        if no_spicy and int(item.get("spicyLevel") or 0) > 0:
+        if no_spicy and effective_spicy_level(item) > 0:
             continue
-        if low_spicy and int(item.get("spicyLevel") or 0) > 1:
+        if low_spicy and effective_spicy_level(item) > 1:
             continue
         if wants_vegetarian(lower) and item.get("isVegetarian") is not True:
             continue
@@ -804,10 +854,11 @@ def rag_search(query: str, items: list[dict], include_unavailable: bool = False)
         fallback_candidates = [
             item for item in candidates
             if (not category or matches_category_kind(item, category))
+            and (not food_only or not is_drink(item))
             and (not drink_pairing or is_drink(item))
             and (not budget or item_price(item) <= budget)
-            and (not no_spicy or int(item.get("spicyLevel") or 0) <= 0)
-            and (not low_spicy or int(item.get("spicyLevel") or 0) <= 1)
+            and (not no_spicy or effective_spicy_level(item) <= 0)
+            and (not low_spicy or effective_spicy_level(item) <= 1)
             and (not wants_vegetarian(lower) or item.get("isVegetarian") is True)
             and not contains_restricted_term(item, allergies)
         ]
@@ -896,8 +947,7 @@ def build_rag_reply(message: str) -> str:
         reasons = []
         if m.get("tasteTags"):
             reasons.append(f"vị {m.get('tasteTags')}")
-        if m.get("spicyLevel") is not None:
-            reasons.append(f"độ cay {m.get('spicyLevel')}/3")
+        reasons.append(f"độ cay {effective_spicy_level(m)}/3")
         if m.get("suitableFor"):
             reasons.append(as_text(m.get("suitableFor")))
         if m.get("pairing"):
@@ -1189,8 +1239,8 @@ def build_tool_reply(req: ChatRequest, intent: str, tool_data: dict[str, Any], s
             price = item_price(item)
             total += price
             reason = item_reason_from_description(item, req.message, intent)
-            if not reason and item.get("spicyLevel") is not None:
-                reason = f"độ cay {item.get('spicyLevel')}/3"
+            if not reason:
+                reason = f"độ cay {effective_spicy_level(item)}/3"
             reason = f" - {reason}" if reason else ""
             lines.append(f"- {item.get('name')} - {format_money(price)}{reason}")
         if intent == "COMBO" or extract_people(lower):

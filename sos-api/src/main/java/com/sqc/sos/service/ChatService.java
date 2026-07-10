@@ -100,16 +100,22 @@ public class ChatService {
     }
 
     private boolean shouldOverrideAiReply(String localIntent, String reply) {
-        if (!"FAQ".equals(localIntent) && !"OUT_OF_SCOPE".equals(localIntent)) {
+        if (!Set.of("FAQ", "OUT_OF_SCOPE", "PAYMENT_HELP", "CALL_STAFF", "CART_HELP", "ORDER_STATUS").contains(localIntent)) {
             return false;
         }
         if (reply == null || reply.isBlank()) {
             return false;
         }
+        return isGenericMenuReply(reply);
+    }
+
+    private boolean isGenericMenuReply(String reply) {
         String normalizedReply = normalizeSearchText(reply);
         return normalizedReply.startsWith("dua tren menu")
                 || normalizedReply.contains("toi goi y")
+                || normalizedReply.contains("goi y cac mon")
                 || normalizedReply.contains("goi y mon")
+                || normalizedReply.contains("mon phu hop tu menu")
                 || normalizedReply.contains("dua tren du lieu menu");
     }
 
@@ -409,27 +415,52 @@ public class ChatService {
     }
 
     private String buildLocalRagReply(String message) {
-        String lower = message.toLowerCase(Locale.ROOT);
+        String lower = normalizeSearchText(message);
         List<MenuItem> items = menuItemRepository.findAll().stream()
-                .filter(m -> Boolean.TRUE.equals(m.getIsActive()) && Boolean.TRUE.equals(m.getIsAvailable()))
+                .filter(m -> Boolean.TRUE.equals(m.getIsActive()))
                 .collect(Collectors.toList());
 
         BigDecimal maxBudget = extractBudget(lower);
-        boolean noSpicy = lower.contains("không cay") || lower.contains("khong cay") || lower.contains("not spicy");
+        boolean wantsAvailability = containsAny(lower, "con khong", "het chua", "con mon", "het mon", "con", "het");
+        boolean wantsPrice = containsAny(lower, "gia", "bao nhieu tien", "may tien", "bao nhieu", "duoi");
+        boolean noSpicy = containsAny(lower, "khong cay", "it cay", "not spicy");
 
         List<MenuItem> matched = items.stream()
                 .filter(m -> {
-                    if (maxBudget != null && m.getPrice().compareTo(maxBudget) > 0) return false;
-                    if (noSpicy && m.getDescription() != null && m.getDescription().toLowerCase(Locale.ROOT).contains("cay")) return false;
-                    if (lower.contains("phở") || lower.contains("pho")) return m.getName().toLowerCase(Locale.ROOT).contains("phở");
-                    if (lower.contains("combo")) return m.getName().toLowerCase(Locale.ROOT).contains("combo");
-                    return lower.length() < 5 || m.getName().toLowerCase(Locale.ROOT).contains(lower)
-                            || (m.getDescription() != null && m.getDescription().toLowerCase(Locale.ROOT).contains(lower));
+                    BigDecimal price = effectivePrice(m);
+                    if (!wantsAvailability && !Boolean.TRUE.equals(m.getIsAvailable())) return false;
+                    if (maxBudget != null && price != null && price.compareTo(maxBudget) > 0) return false;
+                    if (noSpicy && m.getSpicyLevel() != null && m.getSpicyLevel() > 0) return false;
+                    String itemText = normalizeSearchText(String.join(" ",
+                            safe(m.getName()),
+                            safe(m.getDescription()),
+                            m.getCategory() != null ? safe(m.getCategory().getName()) : "",
+                            safe(m.getType()),
+                            safe(m.getTasteTags()),
+                            safe(m.getIngredients()),
+                            safe(m.getSuitableFor()),
+                            safe(m.getPairing())
+                    ));
+                    String itemName = normalizeSearchText(m.getName());
+                    if (!itemName.isBlank() && (lower.contains(itemName) || itemName.contains(lower))) return true;
+                    if (lower.contains("pho")) return itemName.contains("pho");
+                    if (lower.contains("combo")) return itemText.contains("combo");
+                    if (containsAny(lower, "do uong", "nuoc uong", "tra", "ca phe", "sinh to", "nuoc ep")) {
+                        return itemText.contains("do uong") || itemText.contains("nuoc") || itemText.contains("tra")
+                                || itemText.contains("ca phe") || "DRINK".equalsIgnoreCase(m.getType());
+                    }
+                    if (noSpicy || maxBudget != null || wantsPrice || wantsAvailability) return true;
+                    return Arrays.stream(lower.split(" "))
+                            .filter(token -> token.length() > 1)
+                            .anyMatch(itemText::contains);
                 })
+                .sorted(Comparator
+                        .comparing((MenuItem m) -> Boolean.TRUE.equals(m.getIsAvailable()) ? 0 : 1)
+                        .thenComparing(m -> effectivePrice(m), Comparator.nullsLast(Comparator.naturalOrder())))
                 .limit(5)
                 .toList();
 
-        if (matched.isEmpty()) {
+        if (matched.isEmpty() && !wantsPrice && !wantsAvailability && maxBudget == null && !noSpicy) {
             matched = items.stream().limit(3).toList();
         }
 
@@ -437,10 +468,13 @@ public class ChatService {
             return "Xin chào! Hiện chưa có món trong menu. Vui lòng hỏi nhân viên để được tư vấn.";
         }
 
-        StringBuilder sb = new StringBuilder("Dựa trên menu nhà hàng, tôi gợi ý:\n");
+        StringBuilder sb = new StringBuilder(wantsPrice || wantsAvailability
+                ? "Mình tìm thấy thông tin món trong menu hiện tại:\n"
+                : "Dựa trên menu nhà hàng, tôi gợi ý:\n");
         for (MenuItem m : matched) {
             sb.append("- ").append(m.getName())
-                    .append(" (").append(m.getPrice()).append("đ)");
+                    .append(" (").append(formatMoney(effectivePrice(m))).append(")")
+                    .append(Boolean.TRUE.equals(m.getIsAvailable()) ? " - còn món" : " - hiện hết món");
             if (m.getDescription() != null && !m.getDescription().isBlank()) {
                 sb.append(": ").append(m.getDescription());
             }
@@ -456,6 +490,15 @@ public class ChatService {
         return null;
     }
 
+    private BigDecimal effectivePrice(MenuItem item) {
+        return item.getPromotionalPrice() != null ? item.getPromotionalPrice() : item.getPrice();
+    }
+
+    private String formatMoney(BigDecimal value) {
+        if (value == null) return "chưa cập nhật giá";
+        return String.format("%,.0fđ", value);
+    }
+
     private String detectLocalIntent(String message) {
         String lower = normalizeSearchText(message);
         if (containsAny(lower, "thanh toan", "bill", "qr thanh toan", "chuyen khoan", "tinh tien")) return "PAYMENT_HELP";
@@ -464,6 +507,7 @@ public class ChatService {
         if (containsAny(lower, "nhan vien", "phuc vu", "ho tro", "goi phuc vu")) return "CALL_STAFF";
         if (containsAny(lower, "mo cua", "gio mo cua", "may gio", "dia chi", "wifi", "xuat hoa don", "huy mon", "doi mon", "phi dich vu", "danh gia", "review", "khieu nai")) return "FAQ";
         if (isMenuQuestion(lower)) return "MENU_RECOMMENDATION";
+        if (messageMentionsMenuItem(lower)) return "MENU_RECOMMENDATION";
         if (containsAny(lower, "bitcoin", "chung khoan", "code", "lap trinh", "chinh tri", "bong da", "thoi tiet")) return "OUT_OF_SCOPE";
         return "FAQ";
     }
@@ -478,8 +522,9 @@ public class ChatService {
     private boolean isMenuQuestion(String lower) {
         return containsAny(lower,
                 "mon an", "do an", "do uong", "nuoc uong", "combo", "khong cay", "it cay",
-                "an chay", "di ung", "ngan sach", "goi y", "recommend", "gia bao nhieu",
-                "ban chay", "ngon nhat", "hai san", "thit", "rau", "com", "pho", "bun", "lau",
+                "an chay", "di ung", "ngan sach", "goi y", "recommend", "gia", "gia bao nhieu",
+                "bao nhieu tien", "may tien", "duoi", "con khong", "het chua", "con mon", "het mon",
+                "ban chay", "ngon nhat", "mon nao", "hai san", "thit", "rau", "com", "pho", "bun", "lau",
                 "tra", "ca phe", "sinh to", "nuoc ep")
                 || lower.startsWith("mon ")
                 || lower.endsWith(" mon")
@@ -490,6 +535,14 @@ public class ChatService {
                 || lower.contains(" uong gi")
                 || lower.contains(" muon an")
                 || lower.contains(" muon uong");
+    }
+
+    private boolean messageMentionsMenuItem(String lower) {
+        if (lower.length() < 3) return false;
+        return menuItemRepository.findByIsActiveTrue().stream()
+                .map(item -> normalizeSearchText(item.getName()))
+                .filter(name -> name.length() >= 3)
+                .anyMatch(name -> lower.contains(name) || name.contains(lower));
     }
 
     private String normalizeSearchText(String value) {
