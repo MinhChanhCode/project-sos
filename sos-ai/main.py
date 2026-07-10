@@ -53,6 +53,7 @@ MENU_ITEMS: list[dict] = [
     {"id": 21, "name": "Combo khai vị 3 món", "price": 119000, "description": "Combo nhóm nhỏ gồm gỏi cuốn, chả giò và khoai tây"},
     {"id": 22, "name": "Combo gia đình 4 người", "price": 329000, "description": "Combo nhóm có lẩu, món chính, khai vị và đồ uống"},
 ]
+MENU_SYNCED = False
 
 
 class ChatRequest(BaseModel):
@@ -172,6 +173,11 @@ def rebuild_search_index() -> int:
     return sum(sum(row["tokens"].values()) for row in SEARCH_INDEX)
 
 
+def has_request_menu(context: dict[str, Any]) -> bool:
+    menu = context.get("menu")
+    return isinstance(menu, list) and any(isinstance(item, dict) for item in menu)
+
+
 def detect_intent(message: str) -> str:
     lower = normalize(message)
     if any(term in lower for term in ["thanh toán", "bill", "hóa đơn", "qr thanh toán", "chuyển khoản", "tính tiền"]):
@@ -224,7 +230,7 @@ def get_context_menu(context: dict[str, Any]) -> list[dict]:
     menu = context.get("menu")
     if isinstance(menu, list) and menu:
         return [item for item in menu if isinstance(item, dict)]
-    return MENU_ITEMS
+    return MENU_ITEMS if MENU_SYNCED else []
 
 
 def get_memory(session_id: str) -> dict[str, Any]:
@@ -315,9 +321,27 @@ def tool_search_faq(message: str) -> tuple[str, dict]:
     return "search_faq", faq or {}
 
 
+def current_menu_items_by_id(items: list[dict]) -> dict[str, dict]:
+    return {
+        str(item.get("id")): item
+        for item in active_items(items)
+        if item.get("id") not in (None, "")
+    }
+
+
+def remap_memory_items_to_current_menu(last_items: list[dict], items: list[dict]) -> list[dict]:
+    by_id = current_menu_items_by_id(items)
+    current_items = []
+    for item in last_items:
+        current = by_id.get(str(item.get("id")))
+        if current and current.get("isAvailable", True) is not False:
+            current_items.append(current)
+    return current_items
+
+
 def tool_search_menu(message: str, items: list[dict], intent: str, session_id: str) -> tuple[str, list[dict]]:
     memory = get_memory(session_id)
-    last_items = memory.get("lastSuggestedItems") or []
+    last_items = remap_memory_items_to_current_menu(memory.get("lastSuggestedItems") or [], items)
     lower = normalize(message)
     if any(term in lower for term in ["món đó", "loại đó", "cái đó", "rẻ hơn", "ít cay hơn"]) and last_items:
         if "rẻ hơn" in lower:
@@ -472,6 +496,35 @@ def fallback_faq_reply(message: str) -> str:
     if any(term in lower for term in ["đánh giá", "review", "phản hồi", "góp ý"]):
         return "Sau khi dùng bữa, bạn có thể gửi đánh giá trên màn hình khách hàng để nhà hàng cải thiện chất lượng phục vụ."
     return "Mình có thể trả lời thông tin nhà hàng như giờ mở cửa, địa chỉ, wifi, hóa đơn, thanh toán, gọi nhân viên hoặc trạng thái món. Bạn muốn hỏi phần nào?"
+
+
+def is_generic_menu_reply(reply: Optional[str]) -> bool:
+    if not reply:
+        return False
+    lower = normalize(reply)
+    generic_phrases = [
+        "dựa trên menu",
+        "dua tren menu",
+        "dựa trên dữ liệu menu",
+        "dua tren du lieu menu",
+        "tôi gợi ý",
+        "toi goi y",
+        "gợi ý các món",
+        "goi y cac mon",
+        "gợi ý món",
+        "goi y mon",
+        "món phù hợp từ menu",
+        "mon phu hop tu menu",
+    ]
+    return any(phrase in lower for phrase in generic_phrases)
+
+
+def should_keep_deterministic_reply(intent: str, deterministic_reply: Optional[str], llm_reply: Optional[str]) -> bool:
+    if not deterministic_reply:
+        return False
+    if intent not in {"FAQ", "PAYMENT_HELP", "CALL_STAFF", "CART_HELP", "ORDER_STATUS", "OUT_OF_SCOPE"}:
+        return False
+    return is_generic_menu_reply(llm_reply)
 
 
 def extract_budget(text: str) -> Optional[int]:
@@ -754,7 +807,7 @@ def build_rag_reply(message: str) -> str:
     intent = detect_intent(message)
     if intent == "OUT_OF_SCOPE":
         return "Tôi là trợ lý AI của nhà hàng ProjectSOS. Tôi có thể giúp bạn chọn món, xem hướng dẫn đặt món, gọi nhân viên hoặc hỗ trợ thanh toán."
-    if intent in {"FAQ", "PAYMENT", "CALL_STAFF", "CART_HELP", "ORDER_STATUS"}:
+    if intent in {"FAQ", "PAYMENT_HELP", "CALL_STAFF", "CART_HELP", "ORDER_STATUS"}:
         faq = match_faq(message)
         if faq:
             return str(faq.get("answer"))
@@ -762,10 +815,12 @@ def build_rag_reply(message: str) -> str:
             return "Bạn có thể xem trạng thái món ngay trên màn hình đặt món. Nếu món chờ lâu, hãy bấm Nhắn nhân viên hoặc Gọi dịch vụ để nhân viên kiểm tra giúp bạn."
         if intent == "CALL_STAFF":
             return "Bạn hãy bấm nút Nhắn nhân viên hoặc Gọi dịch vụ ở góc dưới màn hình. Nhân viên sẽ nhận thông báo theo bàn của bạn."
-        if intent == "PAYMENT":
+        if intent == "PAYMENT_HELP":
             return "Bạn có thể bấm Yêu cầu thanh toán để xem bill và QR thanh toán demo. Nhân viên sẽ xác nhận sau khi bạn thanh toán."
         if intent == "FAQ":
             return fallback_faq_reply(message)
+        if intent == "CART_HELP":
+            return "Bạn có thể chọn món trong menu rồi bấm thêm vào giỏ. Khi cần kiểm tra giỏ hàng, hãy bấm biểu tượng giỏ hàng ở cuối màn hình."
 
     wants_combo = any(term in lower for term in ["combo", "set", "đi nhóm", "di nhom", "mấy người", "người"])
     matched = build_combo(message, MENU_ITEMS) if wants_combo else rag_search(message, MENU_ITEMS)
@@ -1073,11 +1128,31 @@ def build_tool_reply(req: ChatRequest, intent: str, tool_data: dict[str, Any], s
     return None
 
 
+def constrain_suggested_items_to_menu(suggested_items: list[dict], all_menu_items: list[dict], intent: str) -> list[dict]:
+    by_id = current_menu_items_by_id(all_menu_items)
+    constrained = []
+    include_unavailable = intent == "MENU_AVAILABILITY"
+    seen = set()
+    for item in suggested_items:
+        current = by_id.get(str(item.get("id")))
+        if not current:
+            continue
+        if not include_unavailable and current.get("isAvailable", True) is False:
+            continue
+        item_id = str(current.get("id"))
+        if item_id in seen:
+            continue
+        seen.add(item_id)
+        constrained.append(current)
+    return constrained
+
+
 @app.get("/health")
 def health():
     return {
         "status": "ok",
         "menuItems": len(MENU_ITEMS),
+        "menuSynced": MENU_SYNCED,
         "knowledgeBase": len(KNOWLEDGE_BASE),
         "llmConfigured": has_llm_config(),
         "openaiConfigured": bool(os.getenv("OPENAI_API_KEY")),
@@ -1090,6 +1165,26 @@ def chat(req: ChatRequest):
     session_id = req.session_id or "default"
     req.session_id = session_id
     intent = detect_intent(req.message)
+    all_menu_items = get_context_menu(req.context)
+    menu_required_intents = {
+        "MENU_RECOMMENDATION", "MENU_PRICE", "MENU_AVAILABILITY", "COMBO", "BEST_SELLER",
+        "PROMOTION", "BUDGET_MENU", "CATEGORY_QUERY", "KIDS_FRIENDLY", "NO_SPICY",
+        "LOW_SPICY", "VEGETARIAN", "ALLERGY_SAFE", "DRINK_PAIRING"
+    }
+    if intent in menu_required_intents and not all_menu_items:
+        reply = "Mình chưa có dữ liệu thực đơn hiện tại để tư vấn chính xác. Vui lòng đồng bộ menu từ hệ thống quản lý rồi hỏi lại nhé."
+        return ChatResponse(
+            session_id=session_id,
+            reply=reply,
+            intent=intent,
+            suggestedItems=[],
+            actions=[],
+            usedTools=["menu_context_missing"],
+            memoryUpdated=update_memory(session_id, req, intent, reply, []),
+            llmUsed=False,
+            llmProvider=None,
+            fallbackReason="menu_not_synced_or_missing_context",
+        )
     used_tools, tool_data = build_tool_plan(req, intent)
     suggested_items = []
     for value in tool_data.values():
@@ -1097,7 +1192,7 @@ def chat(req: ChatRequest):
             suggested_items = [item for item in value if isinstance(item, dict)]
             break
 
-    all_menu_items = get_context_menu(req.context)
+    suggested_items = constrain_suggested_items_to_menu(suggested_items, all_menu_items, intent)
     menu_context = build_menu_context(suggested_items or all_menu_items, limit=24)
     menu_catalog = build_menu_catalog(all_menu_items, limit=150)
     deterministic_reply = build_tool_reply(req, intent, tool_data, suggested_items)
@@ -1115,8 +1210,12 @@ def chat(req: ChatRequest):
     if needs_llm:
         llm_reply, llm_provider, fallback_reason = call_llm(req.message, menu_context, menu_catalog, intent, tool_data, session_id)
         if llm_reply:
-            reply = llm_reply
-            llm_used = True
+            if should_keep_deterministic_reply(intent, deterministic_reply, llm_reply):
+                reply = deterministic_reply
+                fallback_reason = "kept_deterministic_reply_over_generic_menu_llm"
+            else:
+                reply = llm_reply
+                llm_used = True
         else:
             reply = deterministic_reply
     elif not has_llm_config():
@@ -1154,8 +1253,9 @@ def sentiment(req: SentimentRequest):
 
 @app.post("/menu/sync")
 def sync_menu(req: MenuSyncRequest):
-    global MENU_ITEMS
+    global MENU_ITEMS, MENU_SYNCED
     MENU_ITEMS = req.items
+    MENU_SYNCED = True
     token_count = rebuild_search_index()
     return {"synced": len(MENU_ITEMS), "indexedTokens": token_count}
 

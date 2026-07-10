@@ -92,7 +92,9 @@ public class MenuAiSyncService {
         payload.put("name", item.getName());
         payload.put("description", item.getDescription());
         payload.put("price", item.getPrice());
+        payload.put("originalPrice", item.getOriginalPrice());
         payload.put("imageUrl", item.getImageUrl());
+        payload.put("categoryId", item.getCategory() != null ? item.getCategory().getId() : null);
         payload.put("categoryName", item.getCategory() != null ? item.getCategory().getName() : null);
         payload.put("isAvailable", item.getIsAvailable());
         payload.put("isActive", item.getIsActive());
