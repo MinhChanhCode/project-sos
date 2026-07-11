@@ -438,14 +438,14 @@ public class ChatService {
         BigDecimal maxBudget = extractBudget(lower);
         boolean wantsAvailability = containsAny(lower, "con khong", "het chua", "con mon", "het mon", "con", "het");
         boolean wantsPrice = containsAny(lower, "gia", "bao nhieu tien", "may tien", "bao nhieu", "duoi");
-        boolean noSpicy = containsAny(lower, "khong cay", "it cay", "not spicy");
+        boolean noSpicy = containsAny(lower, "khong cay", "khong an cay", "not spicy");
+        boolean lowSpicy = !noSpicy && containsAny(lower, "it cay", "cay nhe");
 
         List<MenuItem> matched = items.stream()
                 .filter(m -> {
                     BigDecimal price = effectivePrice(m);
                     if (!wantsAvailability && !Boolean.TRUE.equals(m.getIsAvailable())) return false;
                     if (maxBudget != null && price != null && price.compareTo(maxBudget) > 0) return false;
-                    if (noSpicy && m.getSpicyLevel() != null && m.getSpicyLevel() > 0) return false;
                     String itemText = normalizeSearchText(String.join(" ",
                             safe(m.getName()),
                             safe(m.getDescription()),
@@ -456,6 +456,9 @@ public class ChatService {
                             safe(m.getSuitableFor()),
                             safe(m.getPairing())
                     ));
+                    int spicyLevel = effectiveSpicyLevel(m, itemText);
+                    if (noSpicy && spicyLevel != 0) return false;
+                    if (lowSpicy && spicyLevel > 1) return false;
                     String itemName = normalizeSearchText(m.getName());
                     if (!itemName.isBlank() && (lower.contains(itemName) || itemName.contains(lower))) return true;
                     if (lower.contains("pho")) return itemName.contains("pho");
@@ -464,7 +467,7 @@ public class ChatService {
                         return itemText.contains("do uong") || itemText.contains("nuoc") || itemText.contains("tra")
                                 || itemText.contains("ca phe") || "DRINK".equalsIgnoreCase(m.getType());
                     }
-                    if (noSpicy || maxBudget != null || wantsPrice || wantsAvailability) return true;
+                    if (noSpicy || lowSpicy || maxBudget != null || wantsPrice || wantsAvailability) return true;
                     return Arrays.stream(lower.split(" "))
                             .filter(token -> token.length() > 1)
                             .anyMatch(itemText::contains);
@@ -475,7 +478,7 @@ public class ChatService {
                 .limit(5)
                 .toList();
 
-        if (matched.isEmpty() && !wantsPrice && !wantsAvailability && maxBudget == null && !noSpicy) {
+        if (matched.isEmpty() && !wantsPrice && !wantsAvailability && maxBudget == null && !noSpicy && !lowSpicy) {
             matched = items.stream().limit(3).toList();
         }
 
@@ -507,6 +510,15 @@ public class ChatService {
 
     private BigDecimal effectivePrice(MenuItem item) {
         return item.getPromotionalPrice() != null ? item.getPromotionalPrice() : item.getPrice();
+    }
+
+    private int effectiveSpicyLevel(MenuItem item, String normalizedText) {
+        if (item.getSpicyLevel() != null) return item.getSpicyLevel();
+        String text = normalizedText == null ? "" : normalizedText;
+        if (containsAny(text, "khong cay", "khong an cay")) return 0;
+        if (containsAny(text, "cay nhe", "hoi cay", "sa te")) return 2;
+        if (containsAny(text, "cay", "ot", "lau thai", "bun bo hue")) return 3;
+        return 0;
     }
 
     private String formatMoney(BigDecimal value) {

@@ -110,41 +110,6 @@
       <section class="mt-4 rounded-lg border border-slate-800 bg-slate-900">
         <div class="flex items-center justify-between border-b border-slate-800 px-4 py-3">
           <div>
-            <h2 class="font-semibold">Lịch sử món đã làm</h2>
-            <p class="text-xs text-slate-400">Các món đã sẵn sàng, đã phục vụ, hủy hoặc báo hết trong ca hiện tại</p>
-          </div>
-          <UBadge color="blue" variant="soft">{{ historyItems.length }} mục</UBadge>
-        </div>
-        <div class="max-h-80 overflow-y-auto divide-y divide-slate-800">
-          <article
-            v-for="item in historyItems"
-            :key="`history-${item.id}`"
-            class="grid gap-2 px-4 py-3 text-sm md:grid-cols-[1fr_160px_160px_120px]"
-          >
-            <div>
-              <div class="flex flex-wrap items-center gap-2 font-medium">
-                <span>{{ item.menuItemName }}</span>
-                <UBadge :color="isDrinkItem(item) ? 'blue' : 'orange'" variant="soft" size="xs">
-                  {{ isDrinkItem(item) ? "Đồ uống" : "Bếp" }}
-                </UBadge>
-              </div>
-              <p class="mt-1 text-xs text-slate-400">Bàn: {{ item.tableName || item.tableId || "Chưa rõ" }}</p>
-            </div>
-            <div class="text-slate-300">Sẵn sàng: <b>{{ item.completedQuantity || 0 }}</b></div>
-            <div class="text-slate-300">Đã phục vụ: <b>{{ item.servedQuantity || 0 }}</b></div>
-            <div>
-              <UBadge :color="getHistoryColor(item)" variant="soft">{{ getHistoryLabel(item) }}</UBadge>
-            </div>
-          </article>
-          <p v-if="!historyItems.length" class="px-4 py-8 text-center text-sm text-slate-500">
-            Chưa có món trong lịch sử ca này
-          </p>
-        </div>
-      </section>
-
-      <section class="mt-4 rounded-lg border border-slate-800 bg-slate-900">
-        <div class="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-          <div>
             <h2 class="font-semibold">Còn món / hết món</h2>
             <p class="text-xs text-slate-400">Bếp đổi trạng thái, Customer cập nhật realtime</p>
           </div>
@@ -272,32 +237,6 @@ const getColumnItems = (status: "pending" | "preparing" | "ready" | "done") => {
     if (status === "ready") return (item.completedQuantity || 0) > 0;
     return (item.servedQuantity || 0) > 0;
   });
-};
-
-const historyItems = computed(() =>
-  filteredItems.value
-    .filter((item: any) =>
-      (item.completedQuantity || 0) > 0 ||
-      (item.servedQuantity || 0) > 0 ||
-      (item.cancelledQuantity || 0) > 0 ||
-      (item.outOfStockQuantity || 0) > 0,
-    )
-    .slice()
-    .sort((a: any, b: any) => new Date(b.orderTime || 0).getTime() - new Date(a.orderTime || 0).getTime()),
-);
-
-const getHistoryLabel = (item: any) => {
-  if ((item.outOfStockQuantity || 0) > 0) return "Hết món";
-  if ((item.cancelledQuantity || 0) > 0) return "Đã hủy";
-  if ((item.servedQuantity || 0) > 0) return "Đã phục vụ";
-  return "Sẵn sàng";
-};
-
-const getHistoryColor = (item: any) => {
-  if ((item.outOfStockQuantity || 0) > 0) return "red";
-  if ((item.cancelledQuantity || 0) > 0) return "gray";
-  if ((item.servedQuantity || 0) > 0) return "blue";
-  return "green";
 };
 
 const columns = computed(() => [

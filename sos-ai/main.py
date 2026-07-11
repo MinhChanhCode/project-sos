@@ -648,7 +648,7 @@ def wants_no_spicy(text: str) -> bool:
 
 def wants_low_spicy(text: str) -> bool:
     lower = normalize(text)
-    return wants_no_spicy(lower) or any(term in lower for term in ["ít cay", "it cay", "cay nhẹ", "cay nhe"])
+    return any(term in lower for term in ["ít cay", "it cay", "cay nhẹ", "cay nhe"])
 
 
 def wants_kids_friendly(text: str) -> bool:
@@ -825,7 +825,9 @@ def item_score(query: str, item: dict) -> int:
         score += 6
     if any(term in lower for term in ["no", "món chính", "ăn chính"]) and is_main(item):
         score += 6
-    if any(term in lower for term in ["không cay", "ít cay", "cay nhẹ"]) and effective_spicy_level(item) <= 1:
+    if wants_no_spicy(lower) and effective_spicy_level(item) == 0:
+        score += 8
+    elif wants_low_spicy(lower) and effective_spicy_level(item) <= 1:
         score += 5
     if "cay" in lower and "không cay" not in lower and effective_spicy_level(item) >= 2:
         score += 4
@@ -1260,7 +1262,9 @@ def build_tool_reply(req: ChatRequest, intent: str, tool_data: dict[str, Any], s
             intro = f"Mình gợi ý combo cho {people} người:" if people else "Mình gợi ý combo/nhóm món phù hợp:"
         elif wants_kids_friendly(lower):
             intro = "Mình gợi ý các món dễ ăn, ít/không cay cho trẻ em:"
-        elif intent in {"NO_SPICY", "LOW_SPICY"} or "không cay" in lower or "ít cay" in lower:
+        elif intent == "NO_SPICY" or wants_no_spicy(lower):
+            intro = "Mình gợi ý các món không cay trong menu hiện tại:"
+        elif intent == "LOW_SPICY" or wants_low_spicy(lower):
             intro = "Mình gợi ý các món ít cay hoặc không cay:"
         elif intent == "VEGETARIAN":
             intro = "Mình gợi ý các món chay/phù hợp ăn chay đang có:"
@@ -1302,6 +1306,10 @@ def constrain_suggested_items_to_menu(suggested_items: list[dict], all_menu_item
         if not current:
             continue
         if not include_unavailable and current.get("isAvailable", True) is False:
+            continue
+        if intent == "NO_SPICY" and effective_spicy_level(current) != 0:
+            continue
+        if intent == "LOW_SPICY" and effective_spicy_level(current) > 1:
             continue
         item_id = str(current.get("id"))
         if item_id in seen:
